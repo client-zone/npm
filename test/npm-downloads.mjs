@@ -1,14 +1,14 @@
 import TestRunner from 'test-runner'
-import NpmDownloadsClient from '../npm-downloads.mjs'
-import NpmApiClient from '../npm-api.mjs'
+import NpmDownloads from 'npm-api/npm-downloads'
+import NpmRegistry from 'npm-api/npm-registry'
 import fetch from 'node-fetch'
 import assert from 'assert'
 const a = assert.strict
 const Tom = TestRunner.Tom
 
 const tom = new Tom({ maxConcurrency: 2 })
-const api = new NpmDownloadsClient({ fetch })
-const npmApi = new NpmApiClient({ fetch })
+const api = new NpmDownloads({ fetch })
+const npmRegistry = new NpmRegistry({ fetch })
 
 tom.test('getTotalDownloadsQueue', async function () {
   const queue = api.getTotalDownloadsQueue(['renamer'])
@@ -25,7 +25,7 @@ tom.test('getTotalDownloadsQueue: multiple', async function () {
 })
 
 tom.test('getTotalDownloadsQueue: multiple > 256', async function () {
-  const packageList = await npmApi.getPackagesByMaintainer('fb')
+  const packageList = await npmRegistry.getPackagesByMaintainer('fb')
   const packageNames = packageList.map(p => p.name)
   const queue = api.getTotalDownloadsQueue(packageNames)
   const result = await queue.process()

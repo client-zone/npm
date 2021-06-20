@@ -1,9 +1,9 @@
-import arrayify from 'array-back/index.mjs'
+import arrayify from 'array-back'
 import ApiClientBase from 'api-client-base'
-import NpmApi from './npm-api.mjs'
+import NpmRegistry from 'npm-api/npm-registry'
 import { Job, Queue, Loop } from 'work/index.mjs'
 
-class NpmDownloadsClient extends ApiClientBase {
+class NpmDownloads extends ApiClientBase {
   /**
   SEE: https://github.com/npm/registry/blob/master/docs/download-counts.md#point-values
   Outputs a single total, e.g.:
@@ -103,7 +103,7 @@ class NpmDownloadsClient extends ApiClientBase {
       items: []
     }
     const api = this
-    const npmApi = new NpmApi(this.options)
+    const npmApi = new NpmRegistry(this.options)
     // npmApi.fetch = this.fetch
     const job = new Job({
       name: 'getUserTotalDownloadsQueue',
@@ -256,4 +256,4 @@ class NpmDownloadsClient extends ApiClientBase {
   }
 }
 
-export default NpmDownloadsClient
+export default NpmDownloads

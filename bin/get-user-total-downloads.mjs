@@ -7,6 +7,6 @@ util.inspect.defaultOptions.maxArrayLength = Infinity
 
 const api = new NpmApiClient({ fetch })
 
-const queue = await api.getTotalDownloadsQueue(process.argv[2] || ['renamer', 'byte-size'], 'last-week')
+const queue = await api.getUserTotalDownloadsQueue(process.argv[2] || '75lb')
 const result = await queue.process()
 console.log(result)
