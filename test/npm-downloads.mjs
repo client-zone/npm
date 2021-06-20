@@ -92,6 +92,7 @@ tom.test('getDailyDownloads mixed multiple', async function () {
 tom.test('getUserTotalDownloadsQueue', async function () {
   const job = api.getUserTotalDownloadsQueue('75lb', { limit: 10 })
   const result = await job.process()
+  // this.data = result
   a.ok(result.packageNames.length)
   a.ok(result.items.length)
   a.ok(result.total > 200)

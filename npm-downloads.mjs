@@ -157,8 +157,7 @@ class NpmDownloads extends ApiClientBase {
         '2016-07-01:2017-12-31',
         '2018-01-01:2019-06-30',
         '2019-07-01:2020-12-31',
-        '2020-01-01:2021-06-30',
-        '2021-07-01:2022-12-31'
+        '2021-01-01:2022-06-30'
       ]
       for (const range of ranges) {
         const url = `https://api.npmjs.org/downloads/range/${range}/${packageName}`
