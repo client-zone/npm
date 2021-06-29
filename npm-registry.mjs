@@ -14,10 +14,7 @@ class NpmRegistry extends ApiClientBase {
   */
   async getPackage (packageName) {
     return this.fetchJson(`https://registry.npmjs.org/${packageName}`, {
-      mode: 'cors',
-      headers: {
-        Accept: 'application/vnd.npm.install-v1+json'
-      }
+      mode: 'cors'
     })
   }
 
