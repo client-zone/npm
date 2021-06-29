@@ -39,52 +39,52 @@ tom.test('getTotalDownloadsQueue: scoped package not found', async function () {
   a.equal(result.total, 0)
 })
 
-tom.test('getDailyDownloadsAll', async function () {
-  const downloads = await api.getDailyDownloadsAll('command-line-args')
+tom.test('getPackageDownloadHistory', async function () {
+  const downloads = await api.getPackageDownloadHistory('command-line-args')
   a.ok(downloads.total > 1000000)
   a.ok(downloads.items.length > 1500)
 })
 
-tom.test('getDailyDownloadsAll: handle package not found', async function () {
-  const downloads = await api.getDailyDownloadsAll('aaasssdddfff')
+tom.test('getPackageDownloadHistory: handle package not found', async function () {
+  const downloads = await api.getPackageDownloadHistory('aaasssdddfff')
   a.equal(downloads.total, 0)
 })
 
-tom.test('getDailyDownloadsAll since', async function () {
-  const downloads = await api.getDailyDownloadsAll('command-line-args', { since: '2019-10-25' })
+tom.test('getPackageDownloadHistory since', async function () {
+  const downloads = await api.getPackageDownloadHistory('command-line-args', { since: '2019-10-25' })
   a.ok(downloads.total > 1000)
   a.ok(downloads.items.length > 2)
 })
 
-tom.test('getDailyDownloads', async function () {
-  const result = await api.getDailyDownloads(['renamer'])
+tom.test('getPackageDownloadsRange', async function () {
+  const result = await api.getPackageDownloadsRange(['renamer'])
   a.equal(result.packages.length, 1)
   a.ok(result.total > 100)
 })
 
-tom.test('getDailyDownloads with period', async function () {
-  const result = await api.getDailyDownloads(['renamer'], 'last-week')
+tom.test('getPackageDownloadsRange with period', async function () {
+  const result = await api.getPackageDownloadsRange(['renamer'], 'last-week')
   a.equal(result.packages.length, 1)
   a.equal(result.packages[0].downloads.length, 7)
   a.ok(result.total > 100)
 })
 
-tom.test('getDailyDownloads multiple', async function () {
-  const result = await api.getDailyDownloads(['renamer', 'handbrake-js'])
+tom.test('getPackageDownloadsRange multiple', async function () {
+  const result = await api.getPackageDownloadsRange(['renamer', 'handbrake-js'])
   a.equal(result.packages.length, 2)
   a.equal(result.packages[0].downloads.length, 30)
   a.equal(result.packages[1].downloads.length, 30)
   a.ok(result.total > 10000)
 })
 
-tom.test('getDailyDownloads scoped', async function () {
-  const result = await api.getDailyDownloads(['@types/node'])
+tom.test('getPackageDownloadsRange scoped', async function () {
+  const result = await api.getPackageDownloadsRange(['@types/node'])
   a.equal(result.packages.length, 1)
   a.ok(result.total > 1000000)
 })
 
-tom.test('getDailyDownloads mixed multiple', async function () {
-  const result = await api.getDailyDownloads(['@types/node', '@types/lodash', 'npm'])
+tom.test('getPackageDownloadsRange mixed multiple', async function () {
+  const result = await api.getPackageDownloadsRange(['@types/node', '@types/lodash', 'npm'])
   a.equal(result.packages.length, 3)
   a.ok(result.total > 50000000)
 })

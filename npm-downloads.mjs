@@ -104,7 +104,6 @@ class NpmDownloads extends ApiClientBase {
     }
     const api = this
     const npmApi = new NpmRegistry(this.options)
-    // npmApi.fetch = this.fetch
     const job = new Job({
       name: 'getUserTotalDownloadsQueue',
       fn: async function () {
@@ -120,7 +119,7 @@ class NpmDownloads extends ApiClientBase {
           async fn () {
             this.name = this.scope.pkg.name
             const pkg = this.scope.pkg
-            const downloads = await api.getDailyDownloadsAll(pkg.name, options)
+            const downloads = await api.getPackageDownloadHistory(pkg.name, options)
             for (const item of downloads.items) {
               const total = dateTotals.has(item.date) ? dateTotals.get(item.date) : 0
               dateTotals.set(item.date, total + item.total)
@@ -146,10 +145,10 @@ class NpmDownloads extends ApiClientBase {
    * @param {string} options.totalOnly
    * @param {string} options.groupByMonth
    */
-  async getDailyDownloadsAll (packageName, options = {}) {
+  async getPackageDownloadHistory (packageName, options = {}) {
     const promises = []
     if (options.since) {
-      const url = `https://api.npmjs.org/downloads/range/${options.since}:2020-12-31/${packageName}`
+      const url = `https://api.npmjs.org/downloads/range/${options.since}:2099-12-31/${packageName}`
       promises.push(this.fetchJson(url))
     } else {
       const ranges = [
@@ -214,10 +213,7 @@ class NpmDownloads extends ApiClientBase {
     return output
   }
 
-  /**
-   * NOT USED
-   */
-  async getDailyDownloads (packageNames, period = 'last-month') {
+  async getPackageDownloadsRange (packageNames, period = 'last-month') {
     packageNames = arrayify(packageNames)
     const result = { packages: [] }
     const baseUrl = 'https://api.npmjs.org/downloads/range'
