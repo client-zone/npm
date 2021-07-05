@@ -1,4 +1,4 @@
-import NpmApiClient from '../npm-registry.mjs'
+import NpmApiClient from '@75lb/npm-api/registry'
 import fetch from 'node-fetch'
 
 const api = new NpmApiClient({ fetch })

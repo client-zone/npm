@@ -24,7 +24,7 @@ tom.test('getTotalDownloadsQueue: multiple', async function () {
   a.ok(result.total > 100)
 })
 
-tom.test('getTotalDownloadsQueue: multiple > 256', async function () {
+tom.skip('getTotalDownloadsQueue: multiple > 256', async function () {
   const packageList = await npmRegistry.getPackagesByMaintainer('fb')
   const packageNames = packageList.map(p => p.name)
   const queue = api.getTotalDownloadsQueue(packageNames)
