@@ -212,8 +212,8 @@ class NpmRegistry extends ApiClientBase {
   /*‡
   not CORS-friendly. Docs [here](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#getpackage).
   */
-  async getPackage (packageName) {
-    return this.fetchJson(`https://registry.npmjs.org/${packageName}/latest`, {
+  async getPackage (packageName, options = {}) {
+    return this.fetchJson(`https://registry.npmjs.org/${packageName}${options.latest ? '/latest' : ''}`, {
       mode: 'cors'
     })
   }
