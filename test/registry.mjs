@@ -1,5 +1,5 @@
 import TestRunner from 'test-runner'
-import NpmRegistry from '@75lb/npm-api/registry'
+import NpmRegistry from '@client-zone/npm/registry'
 import assert from 'assert'
 import fetch from 'node-fetch'
 const a = assert.strict

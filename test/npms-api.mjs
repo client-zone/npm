@@ -1,5 +1,5 @@
 import TestRunner from 'test-runner'
-import NpmApiClient from '@75lb/npm-api/npms-api'
+import NpmApiClient from '@client-zone/npm/npms-api'
 import assert from 'assert'
 import fetch from 'node-fetch'
 const a = assert.strict

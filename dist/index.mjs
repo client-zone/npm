@@ -2109,22 +2109,24 @@ class NpmDownloads extends ApiClientBase {
     return queue
   }
 
-  getUserTotalDownloadsQueue (user, options) {
+  getUserDownloadHistory (user, options) {
     options = Object.assign({
       maxConcurrency: 10,
       limit: Infinity,
-      groupByMonth: true
+      groupByMonth: true,
+      includeIndividualPackageDownloads: false
     }, options);
     const dateTotals = new Map();
     const result = {
-      packageNames: [],
+      // packageNames: [],
       total: 0,
-      items: []
+      items: [],
+      packageDownloads: []
     };
     const api = this;
     const npmApi = new NpmRegistry(this.options);
     const job = new Job({
-      name: 'getUserTotalDownloadsQueue',
+      name: 'getUserDownloadHistory',
       fn: async function () {
         this.scope.packages = await npmApi.getPackagesByMaintainer(user);
       },
@@ -2143,7 +2145,9 @@ class NpmDownloads extends ApiClientBase {
               const total = dateTotals.has(item.date) ? dateTotals.get(item.date) : 0;
               dateTotals.set(item.date, total + item.total);
             }
-            result.packageNames.push(downloads.package);
+
+            result.packageDownloads.push(downloads);
+            // result.packageNames.push(downloads.package)
             result.total += downloads.total;
             result.items = Array.from(dateTotals).map(r => ({ date: r[0], total: r[1] }));
           }

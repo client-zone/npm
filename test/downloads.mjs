@@ -1,6 +1,6 @@
 import TestRunner from 'test-runner'
-import NpmDownloads from '@75lb/npm-api/downloads'
-import NpmRegistry from '@75lb/npm-api/registry'
+import NpmDownloads from '@client-zone/npm/downloads'
+import NpmRegistry from '@client-zone/npm/registry'
 import fetch from 'node-fetch'
 import assert from 'assert'
 const a = assert.strict
@@ -89,11 +89,10 @@ tom.test('getPackageDownloadsRange mixed multiple', async function () {
   a.ok(result.total > 50000000)
 })
 
-tom.test('getUserTotalDownloadsQueue', async function () {
-  const job = api.getUserTotalDownloadsQueue('75lb', { limit: 10 })
+tom.test('getUserDownloadHistory', async function () {
+  const job = api.getUserDownloadHistory('75lb', { limit: 2 })
   const result = await job.process()
-  // this.data = result
-  a.ok(result.packageNames.length)
+  a.ok(result.packageDownloads.length)
   a.ok(result.items.length)
   a.ok(result.total > 200)
 }, { timeout: 20000 })

@@ -1,4 +1,4 @@
-import NpmApiClient from '@75lb/npm-api/npms-api'
+import NpmApiClient from '@client-zone/npm/npms-api'
 import fetch from 'node-fetch'
 
 const api = new NpmApiClient({ fetch })
