@@ -3,7 +3,7 @@ import commonJs from '@rollup/plugin-commonjs'
 
 export default [
   {
-    input: 'index.mjs',
+    input: 'index.js',
     output: {
       file: 'dist/index.mjs',
       format: 'esm'
@@ -12,7 +12,7 @@ export default [
     plugins: [nodeResolve({ preferBuiltins: true }), commonJs()]
   },
   {
-    input: 'index.mjs',
+    input: 'index.js',
     output: {
       file: 'dist/index.cjs',
       format: 'cjs',

@@ -4,34 +4,36 @@
   "version": "0.1.5",
   "description": "An npm API client",
   "repository": "https://github.com/client-zone/npm",
+  "type": "module",
   "exports": {
-    "./*": "./lib/*.mjs"
+    "./*": "./lib/*.js"
   },
   "keywords": ["npm", "api", "client"],
   "license": "MIT",
   "engines": {
-    "node": ">=14"
+    "node": ">=12.17"
   },
   "scripts": {
-    "test": "npm run dist && test-runner test/*.mjs",
+    "test": "npm run dist && npm run test:ci",
+    "test:ci": "test-runner test/*.js",
     "dist": "rollup -c"
   },
   "files": [
-    "index.mjs",
+    "index.js",
     "bin",
     "dist",
     "lib"
   ],
   "dependencies": {
     "api-client-base": "^0.1.2",
-    "array-back": "^6.1.2",
-    "work": "^0.9.2"
+    "array-back": "^6.2.2",
+    "work": "^0.10.0"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^19.0.0",
-    "@rollup/plugin-node-resolve": "^13.0.0",
-    "node-fetch": "^2.6.1",
-    "rollup": "^2.52.7",
-    "test-runner": "^0.9.6"
+    "@rollup/plugin-commonjs": "^21.0.1",
+    "@rollup/plugin-node-resolve": "^13.1.3",
+    "node-fetch": "^3.2.0",
+    "rollup": "^2.66.1",
+    "test-runner": "^0.10.1"
   }
 }

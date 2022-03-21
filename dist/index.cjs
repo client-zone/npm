@@ -34,12 +34,12 @@ Object.defineProperty(exports, '__esModule', { value: true });
  * [ 1, 2, 3 ]
  */
 
-function isObject$2 (input) {
+function isObject$1 (input) {
   return typeof input === 'object' && input !== null
 }
 
-function isArrayLike$1 (input) {
-  return isObject$2(input) && typeof input.length === 'number'
+function isArrayLike (input) {
+  return isObject$1(input) && typeof input.length === 'number'
 }
 
 /**
@@ -47,12 +47,12 @@ function isArrayLike$1 (input) {
  * @returns {Array}
  * @alias module:array-back
  */
-function arrayify$1 (input) {
+function arrayify (input) {
   if (Array.isArray(input)) {
     return input
   } else if (input === undefined) {
     return []
-  } else if (isArrayLike$1(input) || input instanceof Set) {
+  } else if (isArrayLike(input) || input instanceof Set) {
     return Array.from(input)
   } else {
     return [input]
@@ -381,91 +381,6 @@ class Emitter {
 Emitter.prototype.addEventListener = Emitter.prototype.on;
 
 /**
- * Takes any input and guarantees an array back.
- *
- * - Converts array-like objects (e.g. `arguments`, `Set`) to a real array.
- * - Converts `undefined` to an empty array.
- * - Converts any another other, singular value (including `null`, objects and iterables other than `Set`) into an array containing that value.
- * - Ignores input which is already an array.
- *
- * @module array-back
- * @example
- * > const arrayify = require('array-back')
- *
- * > arrayify(undefined)
- * []
- *
- * > arrayify(null)
- * [ null ]
- *
- * > arrayify(0)
- * [ 0 ]
- *
- * > arrayify([ 1, 2 ])
- * [ 1, 2 ]
- *
- * > arrayify(new Set([ 1, 2 ]))
- * [ 1, 2 ]
- *
- * > function f(){ return arrayify(arguments); }
- * > f(1,2,3)
- * [ 1, 2, 3 ]
- */
-
-function isObject$1 (input) {
-  return typeof input === 'object' && input !== null
-}
-
-function isArrayLike (input) {
-  return isObject$1(input) && typeof input.length === 'number'
-}
-
-/**
- * @param {*} - The input value to convert to an array
- * @returns {Array}
- * @alias module:array-back
- */
-function arrayify (input) {
-  if (Array.isArray(input)) {
-    return input
-  }
-
-  if (input === undefined) {
-    return []
-  }
-
-  if (isArrayLike(input) || input instanceof Set) {
-    return Array.from(input)
-  }
-
-  return [input]
-}
-
-/**
- * Isomorphic map-reduce function to flatten an array into the supplied array.
- *
- * @module reduce-flatten
- * @example
- * const flatten = require('reduce-flatten')
- */
-
-/**
- * @alias module:reduce-flatten
- * @example
- * > numbers = [ 1, 2, [ 3, 4 ], 5 ]
- * > numbers.reduce(flatten, [])
- * [ 1, 2, 3, 4, 5 ]
- */
-function flatten (arr, curr) {
-  if (Array.isArray(curr)) {
-    arr.push(...curr);
-  } else {
-    arr.push(curr);
-  }
-  return arr
-}
-
-/**
  * @module fsm-base
  * @typicalname stateMachine
  */
@@ -547,7 +462,7 @@ class StateMachine extends Emitter {
       const froms = _validMoves.get(this)
         .filter(move => move.to.indexOf(state) > -1)
         .map(move => move.from.map(from => `'${from}'`))
-        .reduce(flatten);
+        .flat();
       const msg = `Can only move to '${state}' from ${froms.join(' or ') || '<unspecified>'} (not '${prevState}')`;
       const err = new Error(msg);
       err.name = 'INVALID_MOVE';
@@ -1709,14 +1624,49 @@ class Node extends createMixin(Composite)(StateMachine) {
     this.name = options.name;
     this.args = options.args;
     this.id = (Math.random() * 10e20).toString(16);
-    if (options.argsFn) this.argsFn = options.argsFn;
-    if (options.onFail) this.onFail = options.onFail;
-    if (options.onFailCondition) this.onFailCondition = options.onFailCondition;
-    if (options.onSuccess) this.onSuccess = options.onSuccess;
-    if (options.finally) this.finally = options.finally;
-    if (options.skipIf) this.skipIf = options.skipIf;
+    /**
+     * A function which returns the args.
+     * Since a function is a valid arg, `this.args` could not be reused for this value too.
+     * @type {funciton}
+     */
+    this.argsFn = options.argsFn;
+
+    /**
+     * @type {node}
+     */
+    this.onFail = options.onFail;
+
+    /**
+     * @type {RegExp}
+     */
+    this.onFailCondition = options.onFailCondition;
+
+    /**
+     * @type {node}
+     */
+    this.onSuccess = options.onSuccess;
+
+    /**
+     * @type {node}
+     */
+    this.finally = options.finally;
+
+    /**
+     * Skip processing if true.
+     * @type {boolean}
+     */
+    this.skipIf = options.skipIf;
+
+    /**
+     * The _process implementation can be passed in as an option as a shortcut instead of subclassing Node and overriding _process.
+     * TODO: Remove, this is sloppy.
+     */
     if (options._process) this._process = options._process;
 
+    /**
+     * Arbitrary data context for this node tree. Property value requests bubble up.
+     * @type {object}
+     */
     this.scope = new Proxy({}, {
       get: (target, prop) => {
         if (prop in target) {
@@ -1735,6 +1685,7 @@ class Node extends createMixin(Composite)(StateMachine) {
   get global () {
     return this.root().scope
   }
+
   set global (val) {
     this.root().scope = val;
   }
@@ -1742,6 +1693,7 @@ class Node extends createMixin(Composite)(StateMachine) {
   get name () {
     return this._replaceScopeToken(_name.get(this))
   }
+
   set name (val) {
     _name.set(this, val);
   }
@@ -1784,8 +1736,8 @@ class Node extends createMixin(Composite)(StateMachine) {
         this.setState('successful', this, result);
       } catch (err) {
         this.setState('failed', this);
-        const processFail = !this.onFailCondition
-          || (this.onFailCondition && this.onFailCondition.test(err.message));
+        const processFail = !this.onFailCondition ||
+          (this.onFailCondition && this.onFailCondition.test(err.message));
         if (this.onFail && processFail) {
           if (!(this.onFail.args && this.onFail.args.length)) {
             this.onFail.args = [err, this];
@@ -1969,9 +1921,9 @@ class Queue extends Node {
 class Job extends Node {
   /** ▪︎ Job()
 
-  • [options] :object
-  • [options.fn] :function
-  • [options.result] :string
+  • [options] :object
+  • [options.fn] :function
+  • [options.result] :string
   */
   constructor (options = {}) {
     super(options);
@@ -1998,8 +1950,8 @@ class Job extends Node {
 class Loop extends Queue {
   /**
   • [options]      :object
-  • [options.for]  :function - A function which returns `{ var: string, of: iterable }`.
-  • [options.Node] :Node     - Node to create for each item yielded by the iterable.
+  • [options.for]  :function - A function which returns `{ var: string, of: iterable }`.
+  • [options.Node] :Node     - Node to create for each item yielded by the iterable.
   */
   constructor (options = {}) {
     super(options);
@@ -2040,7 +1992,7 @@ class NpmDownloads extends ApiClientBase {
 
   */
   getTotalDownloadsQueue (packageNames, point = 'last-month') {
-    packageNames = arrayify$1(packageNames);
+    packageNames = arrayify(packageNames);
     const url = `https://api.npmjs.org/downloads/point/${point}`;
 
     const result = {
@@ -2169,6 +2121,7 @@ class NpmDownloads extends ApiClientBase {
   /**
    * Returns all downloads per day for a package.
    * @param {string} options.since
+   * @param {string} options.period
    * @param {string} options.totalOnly
    * @param {string} options.groupByMonth
    */
@@ -2176,6 +2129,9 @@ class NpmDownloads extends ApiClientBase {
     const promises = [];
     if (options.since) {
       const url = `https://api.npmjs.org/downloads/range/${options.since}:2099-12-31/${packageName}`;
+      promises.push(this.fetchJson(url));
+    } else if (options.period) {
+      const url = `https://api.npmjs.org/downloads/range/${options.period}/${packageName}`;
       promises.push(this.fetchJson(url));
     } else {
       const ranges = [
@@ -2240,8 +2196,10 @@ class NpmDownloads extends ApiClientBase {
     return output
   }
 
+
+  /* Too similar to getPackageDownloadsHistory */
   async getPackageDownloadsRange (packageNames, period = 'last-month') {
-    packageNames = arrayify$1(packageNames);
+    packageNames = arrayify(packageNames);
     const result = { packages: [] };
     const baseUrl = 'https://api.npmjs.org/downloads/range';
 
@@ -2254,8 +2212,10 @@ class NpmDownloads extends ApiClientBase {
       const json1 = await this.fetchJson(`${baseUrl}/${period}/${nonScopedNames.slice(0, 128).join(',')}`);
       let json2 = {};
       if (nonScopedNames.length > 128) {
+        /* And what if there are more than 256 packages?  */
         json2 = await this.fetchJson(`${baseUrl}/${period}/${nonScopedNames.slice(128, 256).join(',')}`);
       }
+
 
       for (const packageName of nonScopedNames) {
         const downloads = json1[packageName] || json2[packageName]
@@ -2265,7 +2225,7 @@ class NpmDownloads extends ApiClientBase {
       }
     }
 
-    /* scoped names */
+    /* scoped names - fetching multiple packages not supported */
     const scopedNames = packageNames.filter(name => /@/.test(name));
     for (const packageName of scopedNames) {
       const json = await this.fetchJson(`${baseUrl}/${period}/${packageName}`);
