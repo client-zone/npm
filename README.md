@@ -7,7 +7,7 @@
 
 # @client-zone/npm
 
-npm-api downloads user 75lb
+npm-api downloads user "75lb"
 npm-api downloads package renamer
 
 * * *
