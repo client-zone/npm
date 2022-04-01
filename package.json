@@ -1,14 +1,18 @@
 {
   "name": "@client-zone/npm",
   "author": "Lloyd Brookes <75pound@gmail.com>",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "description": "An npm API client",
   "repository": "https://github.com/client-zone/npm",
   "type": "module",
   "exports": {
     "./*": "./lib/*.js"
   },
-  "keywords": ["npm", "api", "client"],
+  "keywords": [
+    "npm",
+    "api",
+    "client"
+  ],
   "license": "MIT",
   "engines": {
     "node": ">=12.17"
