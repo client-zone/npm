@@ -20,7 +20,8 @@
   "scripts": {
     "test": "npm run dist && npm run test:ci",
     "test:ci": "test-runner test/*.js",
-    "dist": "rollup -c"
+    "dist": "rollup -c",
+    "dl": "node bin/downloads.js getUserDownloadHistory '\"75lb\"' > tmp/75lb-downloads.json"
   },
   "files": [
     "index.js",
