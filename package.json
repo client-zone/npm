@@ -35,10 +35,10 @@
     "work": "^0.10.0"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^22.0.2",
-    "@rollup/plugin-node-resolve": "^14.1.0",
-    "node-fetch": "^3.2.10",
-    "rollup": "^2.79.0",
+    "@rollup/plugin-commonjs": "^24.0.0",
+    "@rollup/plugin-node-resolve": "^15.0.1",
+    "node-fetch": "^3.3.0",
+    "rollup": "^3.9.1",
     "test-runner": "^0.10.1"
   }
 }
