@@ -58,17 +58,19 @@ function arrayify (input) {
 class ApiClientBase {
   /**
    * @param [options] {object}
-   * @param [options.fetch] {object} - Defaults to `window.fetch` unless an alternative is passed in.
    * @param [options.baseUrl] {string} - The base URL for all subsequent paths passed into `fetch()`.
    */
   constructor (options = {}) {
-    options = Object.assign({
-      fetch: undefined
-    }, options);
-
+    const validOptions = ['baseUrl', 'fetchOptions', 'logger'];
+    if (!Object.getOwnPropertyNames(options).every(name => validOptions.includes(name))) {
+      throw new Error('Valid options are: ' + validOptions.join(', '))
+    }
     this.options = options;
     this.baseUrl = options.baseUrl || '';
-    this._fetch = typeof fetch === 'undefined' ? options.fetch : fetch;
+    this.fetchOptions = options.fetchOptions || {};
+    this.logger = options.logger || {
+      log: function () {}
+    };
   }
 
   /**
@@ -77,29 +79,47 @@ class ApiClientBase {
   preFetch (url, fetchOptions) {}
 
   /**
-   * The core fetch method. Throws on error, 400 or 500.
+   * @param [options] {object}
+   * @param [options.skipPreFetch] {boolean}
+   * @param [options.fetchOptions] {object} - The default fetch options for each request. E.g. for passing in a custom dispatcher.
    * @returns {Response}
    */
   async fetch (path, options = {}) {
-    const fetchOptions = Object.assign({}, {
-      headers: {}
-    }, options);
+    const fetchOptions = Object.assign({}, this.fetchOptions, options);
 
+    // TODO: rewrite to use URL instances? They have built-in methods like searchParams.add(). Handle URL instances as input as an alternative to `path`? See ibkr-cpapi for a use case study.
+    // TODO: Add retrying
+    // TODO: Is there still a case for ClientBase now fetch is isomorphic? Still needed for standardised exception handling, timeout control etc?
     const url = `${this.baseUrl}${path}`;
-    this.preFetch(url, fetchOptions);
-    const response = await this._fetch(url, fetchOptions);
+    if (!options.skipPreFetch) {
+      this.preFetch(url, fetchOptions);
+    }
+
+    this.logger.log(`Fetching: ${url}`);
+    const now = Date.now();
+    let response;
+    try {
+      response = await fetch(url, fetchOptions);
+    } catch (err) {
+      const baseError = new Error(`Failed to fetch: ${url}`);
+      baseError.cause = err;
+      baseError.request = { url, fetchOptions };
+      throw baseError
+    }
+
+    this.logger.log(`Fetched: ${url}, Response: ${response.status}, Duration: ${Date.now() - now}ms`);
     if (response.ok) {
       return response
     } else {
-      const err = new Error(`${response.status}: ${response.statusText}`);
-      err.response = {
-        url,
+      const baseError = new Error(`${response.status}: ${response.statusText}`);
+      baseError.request = { url, fetchOptions };
+      baseError.response = {
         status: response.status,
         statusText: response.statusText,
         body: await response.text(),
         headers: response.headers
       };
-      throw err
+      throw baseError
     }
   }
 
@@ -600,6 +620,10 @@ function createMixin (Src) {
 }
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
+
+function getDefaultExportFromCjs (x) {
+	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
+}
 
 /**
  * lodash (Custom Build) <https://lodash.com/>
@@ -1533,6 +1557,8 @@ function get(object, path, defaultValue) {
 
 var lodash_get = get;
 
+var lodashGet = /*@__PURE__*/getDefaultExportFromCjs(lodash_get);
+
 const _name = new WeakMap();
 const _args = new WeakMap();
 
@@ -1715,7 +1741,7 @@ class Node extends createMixin(Composite)(StateMachine) {
   _replaceScopeToken (str) {
     if (typeof str === 'string' && str) {
       if (/^•[a-zA-Z]/.test(str)) {
-        return lodash_get(this.scope, str.replace('•', ''))
+        return lodashGet(this.scope, str.replace('•', ''))
       } else if (/•{.*}/.test(str)) {
         str = str.replace('•{', '${scope.');
         const fn = new Function('scope', `return \`${str}\``);
@@ -1872,6 +1898,8 @@ class Job extends Node {
   }
 }
 
+var Job$1 = Job;
+
 class Loop extends Queue {
   /**
   • [options]      :object
@@ -1903,6 +1931,8 @@ class Loop extends Queue {
   }
 }
 
+var Loop$1 = Loop;
+
 class NpmDownloads extends ApiClientBase {
   /**
   SEE: https://github.com/npm/registry/blob/master/docs/download-counts.md#point-values
@@ -1932,7 +1962,7 @@ class NpmDownloads extends ApiClientBase {
     /* non-scoped names */
     const nonScopedNames = packageNames.filter(name => !/@/.test(name));
     if (nonScopedNames.length === 1) {
-      queue.add(new Job({
+      queue.add(new Job$1({
         name: 'Get single package non-scoped downloads: ' + nonScopedNames[0],
         fn: async () => {
           const data = await this.fetchJson(`${url}/${nonScopedNames[0]}`);
@@ -1942,7 +1972,7 @@ class NpmDownloads extends ApiClientBase {
     } else {
       while (nonScopedNames.length) {
         const names = nonScopedNames.splice(0, 128);
-        queue.add(new Job({
+        queue.add(new Job$1({
           name: 'Get batch of scoped downloads: ' + names.length,
           fn: async () => {
             /* bulk query */
@@ -1961,14 +1991,14 @@ class NpmDownloads extends ApiClientBase {
     /* scoped names, bulk queries not supported */
     const scopedNames = packageNames.filter(name => /@/.test(name));
     for (const packageName of scopedNames) {
-      queue.add(new Job({
+      queue.add(new Job$1({
         name: 'Get scoped package downloads: ' + packageName,
         fn: async () => {
           try {
             const json = await this.fetchJson(`${url}/${packageName}`);
             result.packages.push({ name: packageName, downloads: json.downloads });
           } catch (err) {
-            if (err.status === 404) {
+            if (err.response.status === 404) {
               result.packages.push({ name: packageName, downloads: 0 });
             } else {
               throw err
@@ -1978,7 +2008,7 @@ class NpmDownloads extends ApiClientBase {
       }));
     }
 
-    queue.onSuccess = new Job({
+    queue.onSuccess = new Job$1({
       name: 'Compute totals',
       fn: function () {
         result.total = result.packages
@@ -2006,18 +2036,18 @@ class NpmDownloads extends ApiClientBase {
     };
     const api = this;
     const npmApi = new NpmRegistry(this.options);
-    const job = new Job({
+    const job = new Job$1({
       name: 'getUserDownloadHistory',
       fn: async function () {
         this.scope.packages = await npmApi.getPackagesByMaintainer(user);
       },
-      onSuccess: new Loop({
+      onSuccess: new Loop$1({
         name: 'Get download stats for each package',
         maxConcurrency: 5,
         for: function () {
           return { var: 'pkg', of: this.scope.packages.slice(0, options.limit) }
         },
-        Node: class LoopJob extends Job {
+        Node: class LoopJob extends Job$1 {
           async fn () {
             this.name = this.scope.pkg.name;
             const pkg = this.scope.pkg;
@@ -2033,7 +2063,7 @@ class NpmDownloads extends ApiClientBase {
             result.items = Array.from(dateTotals).map(r => ({ date: r[0], total: r[1] }));
           }
         },
-        onSuccess: new Job({
+        onSuccess: new Job$1({
           name: 'Return result',
           fn: () => result
         })
@@ -2064,7 +2094,12 @@ class NpmDownloads extends ApiClientBase {
         '2016-07-01:2017-12-31',
         '2018-01-01:2019-06-30',
         '2019-07-01:2020-12-31',
-        '2021-01-01:2022-06-30'
+        '2021-01-01:2022-06-30',
+        '2022-07-01:2022-12-31',
+        '2023-01-01:2023-06-30',
+        '2023-07-01:2023-12-31',
+        '2024-01-01:2024-06-30',
+        '2024-07-01:2024-12-31'
       ];
       for (const range of ranges) {
         const url = `https://api.npmjs.org/downloads/range/${range}/${packageName}`;
@@ -2089,7 +2124,7 @@ class NpmDownloads extends ApiClientBase {
         }, 0);
       }
     } catch (err) {
-      if (err.status === 404) {
+      if (err.response.status === 404) {
         output = {
           start: '',
           end: '',

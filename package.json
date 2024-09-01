@@ -19,8 +19,8 @@
   },
   "scripts": {
     "test": "npm run dist && npm run test:ci",
-    "test:ci": "test-runner test/*.js",
-    "dist": "rollup -c",
+    "test:ci": "75lb-nature test-runner test/*.js",
+    "dist": "75lb-nature cjs-build index.js && 75lb-nature simple-rollup index.js",
     "dl": "node bin/downloads.js getUserDownloadHistory '\"75lb\"' > tmp/75lb-downloads.json"
   },
   "files": [
@@ -30,15 +30,10 @@
     "lib"
   ],
   "dependencies": {
-    "@client-zone/base": "^0.4.4",
+    "@client-zone/base": "^0.7.0",
     "array-back": "^6.2.2",
     "work": "^0.10.0"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^24.0.0",
-    "@rollup/plugin-node-resolve": "^15.0.1",
-    "node-fetch": "^3.3.0",
-    "rollup": "^3.9.1",
-    "test-runner": "^0.10.1"
   }
 }

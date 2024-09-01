@@ -1,31 +1,29 @@
-import TestRunner from 'test-runner'
 import NpmRegistry from '@client-zone/npm/registry'
-import assert from 'assert'
-import fetch from 'node-fetch'
-const a = assert.strict
-const Tom = TestRunner.Tom
+import { strict as a } from 'assert'
 
-const tom = new Tom({ maxConcurrency: 2 })
-const api = new NpmRegistry({ fetch })
+// const tom = new Tom({ maxConcurrency: 2 })
+const api = new NpmRegistry()
+const [test, only, skip] = [new Map(), new Map(), new Map()]
 
-tom.test('getPackage', async function () {
+test.set('getPackage', async function () {
   const result = await api.getPackage(['renamer'])
   a.equal(result.name, 'renamer')
 })
 
-tom.test('getPackagesByMaintainer', async function () {
+test.set('getPackagesByMaintainer', async function () {
   const result = await api.getPackagesByMaintainer('75lb')
   a.ok(result.length > 100)
 })
 
-tom.test('getPackagesByMaintainer - over 250 packages', async function () {
-  const result = await api.getPackagesByMaintainer('substack')
-  a.ok(result.length > 900)
+test.set('getPackagesByMaintainer - over 250 packages', async function () {
+  const result = await api.getPackagesByMaintainer('fb')
+  a.ok(result.length > 300)
 })
 
-tom.test('search', async function () {
+test.set('search', async function () {
   const result = await api.search({ text: 'maintainer:75lb' })
   a.ok(result.length > 100)
 }, { timeout: 20000 })
 
-export default tom
+export { test, only, skip }
+

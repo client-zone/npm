@@ -1,30 +1,26 @@
-import TestRunner from 'test-runner'
 import NpmDownloads from '@client-zone/npm/downloads'
 import NpmRegistry from '@client-zone/npm/registry'
-import fetch from 'node-fetch'
-import assert from 'assert'
-const a = assert.strict
-const Tom = TestRunner.Tom
+import { strict as a } from 'assert'
 
-const tom = new Tom({ maxConcurrency: 2 })
-const api = new NpmDownloads({ fetch })
-const npmRegistry = new NpmRegistry({ fetch })
+const api = new NpmDownloads()
+const npmRegistry = new NpmRegistry()
+const [test, only, skip] = [new Map(), new Map(), new Map()]
 
-tom.test('getTotalDownloadsQueue', async function () {
+test.set('getTotalDownloadsQueue', async function () {
   const queue = api.getTotalDownloadsQueue(['renamer'])
   const result = await queue.process()
   a.equal(result.packages.length, 1)
   a.ok(result.total > 100)
 })
 
-tom.test('getTotalDownloadsQueue: multiple', async function () {
+test.set('getTotalDownloadsQueue: multiple', async function () {
   const queue = api.getTotalDownloadsQueue(['renamer', 'handbrake-js'])
   const result = await queue.process()
   a.equal(result.packages.length, 2)
   a.ok(result.total > 100)
 })
 
-tom.skip('getTotalDownloadsQueue: multiple > 256', async function () {
+skip.set('getTotalDownloadsQueue: multiple > 256', async function () {
   const packageList = await npmRegistry.getPackagesByMaintainer('fb')
   const packageNames = packageList.map(p => p.name)
   const queue = api.getTotalDownloadsQueue(packageNames)
@@ -32,44 +28,44 @@ tom.skip('getTotalDownloadsQueue: multiple > 256', async function () {
   a.ok(result.packages.length > 256)
 }, { timeout: 40000 })
 
-tom.test('getTotalDownloadsQueue: scoped package not found', async function () {
+test.set('getTotalDownloadsQueue: scoped package not found', async function () {
   const queue = api.getTotalDownloadsQueue(['@akdfdsaf/jdshfauybsfuyabdflbasdfdksahjsdhksdf'])
   const result = await queue.process()
   a.equal(result.packages.length, 1)
   a.equal(result.total, 0)
 })
 
-tom.test('getPackageDownloadHistory', async function () {
+test.set('getPackageDownloadHistory', async function () {
   const downloads = await api.getPackageDownloadHistory('command-line-args')
   a.ok(downloads.total > 1000000)
   a.ok(downloads.items.length > 1500)
 })
 
-tom.test('getPackageDownloadHistory: handle package not found', async function () {
+test.set('getPackageDownloadHistory: handle package not found', async function () {
   const downloads = await api.getPackageDownloadHistory('aaasssdddfff')
   a.equal(downloads.total, 0)
 })
 
-tom.test('getPackageDownloadHistory since', async function () {
+test.set('getPackageDownloadHistory since', async function () {
   const downloads = await api.getPackageDownloadHistory('command-line-args', { since: '2019-10-25' })
   a.ok(downloads.total > 1000)
   a.ok(downloads.items.length > 2)
 })
 
-tom.test('getPackageDownloadsRange', async function () {
+test.set('getPackageDownloadsRange', async function () {
   const result = await api.getPackageDownloadsRange(['renamer'])
   a.equal(result.packages.length, 1)
   a.ok(result.total > 100)
 })
 
-tom.test('getPackageDownloadsRange with period', async function () {
+test.set('getPackageDownloadsRange with period', async function () {
   const result = await api.getPackageDownloadsRange(['renamer'], 'last-week')
   a.equal(result.packages.length, 1)
   a.equal(result.packages[0].downloads.length, 7)
   a.ok(result.total > 100)
 })
 
-tom.test('getPackageDownloadsRange multiple', async function () {
+test.set('getPackageDownloadsRange multiple', async function () {
   const result = await api.getPackageDownloadsRange(['renamer', 'handbrake-js'])
   a.equal(result.packages.length, 2)
   a.equal(result.packages[0].downloads.length, 30)
@@ -77,19 +73,19 @@ tom.test('getPackageDownloadsRange multiple', async function () {
   a.ok(result.total > 10000)
 })
 
-tom.test('getPackageDownloadsRange scoped', async function () {
+test.set('getPackageDownloadsRange scoped', async function () {
   const result = await api.getPackageDownloadsRange(['@types/node'])
   a.equal(result.packages.length, 1)
   a.ok(result.total > 1000000)
 })
 
-tom.test('getPackageDownloadsRange mixed multiple', async function () {
+test.set('getPackageDownloadsRange mixed multiple', async function () {
   const result = await api.getPackageDownloadsRange(['@types/node', '@types/lodash', 'npm'])
   a.equal(result.packages.length, 3)
   a.ok(result.total > 50000000)
 })
 
-tom.test('getUserDownloadHistory', async function () {
+test.set('getUserDownloadHistory', async function () {
   const job = api.getUserDownloadHistory('75lb', { limit: 2 })
   const result = await job.process()
   a.ok(result.packageDownloads.length)
@@ -97,4 +93,4 @@ tom.test('getUserDownloadHistory', async function () {
   a.ok(result.total > 200)
 }, { timeout: 20000 })
 
-export default tom
+export { test, only, skip }
