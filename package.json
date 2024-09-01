@@ -15,7 +15,7 @@
   ],
   "license": "MIT",
   "engines": {
-    "node": ">=12.17"
+    "node": ">=18"
   },
   "scripts": {
     "test": "npm run dist && npm run test:ci",
