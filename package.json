@@ -30,7 +30,7 @@
     "lib"
   ],
   "dependencies": {
-    "@client-zone/base": "^0.7.0",
+    "@client-zone/base": "^0.7.1",
     "array-back": "^6.2.2",
     "work": "^0.10.0"
   },
