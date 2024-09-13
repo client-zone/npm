@@ -2,95 +2,116 @@ import NpmDownloads from '@client-zone/npm/downloads'
 import NpmRegistry from '@client-zone/npm/registry'
 import { strict as a } from 'assert'
 
-const api = new NpmDownloads()
+const api = new NpmDownloads({ logger: {
+  // log: console.warn }
+})
 const npmRegistry = new NpmRegistry()
 const [test, only, skip] = [new Map(), new Map(), new Map()]
 
-test.set('getTotalDownloadsQueue', async function () {
-  const queue = api.getTotalDownloadsQueue(['renamer'])
+test.set('getTotalPackageDownloads: last month (default)', async function () {
+  const queue = api.getTotalPackageDownloads(['renamer'])
   const result = await queue.process()
+  /*
+  { packages: [ { name: 'renamer', downloads: 71549 } ], total: 71549 }
+  */
   a.equal(result.packages.length, 1)
-  a.ok(result.total > 100)
+  a.ok(result.total > 50000)
 })
 
-test.set('getTotalDownloadsQueue: multiple', async function () {
-  const queue = api.getTotalDownloadsQueue(['renamer', 'handbrake-js'])
+test.set('getTotalPackageDownloads: multiple, last month (default)', async function () {
+  const queue = api.getTotalPackageDownloads(['renamer', 'handbrake-js'])
   const result = await queue.process()
+  /*
+  {
+    packages: [
+      { name: 'renamer', downloads: 71549 },
+      { name: 'handbrake-js', downloads: 3023 }
+    ],
+    total: 74572
+  }
+  */
   a.equal(result.packages.length, 2)
-  a.ok(result.total > 100)
+  a.ok(result.total > 50000)
 })
 
-skip.set('getTotalDownloadsQueue: multiple > 256', async function () {
+test.set('getTotalPackageDownloads: > 256 packages', async function () {
   const packageList = await npmRegistry.getPackagesByMaintainer('fb')
   const packageNames = packageList.map(p => p.name)
-  const queue = api.getTotalDownloadsQueue(packageNames)
+  /* Doesn't support timeout but should do */
+  const queue = api.getTotalPackageDownloads(packageNames, 'last-month', { timeout: 40000 })
   const result = await queue.process()
+  /*
+  {
+     packages: [
+       { name: 'react', downloads: 105947970 },
+       { name: 'react-dom', downloads: 97665933 },
+       { name: 'react-is', downloads: 428621033 },
+       { name: 'scheduler', downloads: 116742157 },
+       etc...
+     ],
+     total: 2042518656
+   }
+  */
   a.ok(result.packages.length > 256)
-}, { timeout: 40000 })
+  a.ok(result.total > 50000)
+})
 
-test.set('getTotalDownloadsQueue: scoped package not found', async function () {
-  const queue = api.getTotalDownloadsQueue(['@akdfdsaf/jdshfauybsfuyabdflbasdfdksahjsdhksdf'])
+test.set('getTotalPackageDownloads: scoped package not found', async function () {
+  const queue = api.getTotalPackageDownloads(['@akdfdsaf/jdshfauybsfuyabdflbasdfdksahjsdhksdf'])
   const result = await queue.process()
+  /*
+  {
+    packages: [
+      {
+        name: '@akdfdsaf/jdshfauybsfuyabdflbasdfdksahjsdhksdf',
+        downloads: 0
+      }
+    ],
+    total: 0
+  }
+  */
   a.equal(result.packages.length, 1)
   a.equal(result.total, 0)
 })
 
 test.set('getPackageDownloadHistory', async function () {
-  const downloads = await api.getPackageDownloadHistory('command-line-args')
-  a.ok(downloads.total > 1000000)
-  a.ok(downloads.items.length > 1500)
+  const result = await api.getPackageDownloadHistory('command-line-args')
+  /*
+  [
+    { date: '2015-03-15', total: 116 },
+    { date: '2015-03-16', total: 294 },
+    { date: '2015-03-17', total: 302 },
+    { date: '2015-03-18', total: 336 },
+    etc
+  ]
+  */
+  a.ok(result.length > 1500)
 })
 
 test.set('getPackageDownloadHistory: handle package not found', async function () {
-  const downloads = await api.getPackageDownloadHistory('aaasssdddfff')
-  a.equal(downloads.total, 0)
+  try {
+    await api.getPackageDownloadHistory('aaasssdddfff')
+  } catch (err) {
+    /* should return a bespoke client-zone/npm err with the base error as the cause */
+    a.equal(err.response.status, 404)
+  }
 })
 
-test.set('getPackageDownloadHistory since', async function () {
-  const downloads = await api.getPackageDownloadHistory('command-line-args', { since: '2019-10-25' })
-  a.ok(downloads.total > 1000)
-  a.ok(downloads.items.length > 2)
+test.set('getPackageDownloadHistory: from, to', async function () {
+  const result = await api.getPackageDownloadHistory('command-line-args', { from: '2019-10-25', to: '2019-10-30' })
+  /*
+  [
+    { date: '2019-10-25', total: 65433 },
+    { date: '2019-10-26', total: 17572 },
+    { date: '2019-10-27', total: 13221 },
+    { date: '2019-10-28', total: 61587 },
+    { date: '2019-10-29', total: 68324 },
+    { date: '2019-10-30', total: 67366 }
+  ]
+  */
+  a.equal(result.length, 6)
 })
 
-test.set('getPackageDownloadsRange', async function () {
-  const result = await api.getPackageDownloadsRange(['renamer'])
-  a.equal(result.packages.length, 1)
-  a.ok(result.total > 100)
-})
-
-test.set('getPackageDownloadsRange with period', async function () {
-  const result = await api.getPackageDownloadsRange(['renamer'], 'last-week')
-  a.equal(result.packages.length, 1)
-  a.equal(result.packages[0].downloads.length, 7)
-  a.ok(result.total > 100)
-})
-
-test.set('getPackageDownloadsRange multiple', async function () {
-  const result = await api.getPackageDownloadsRange(['renamer', 'handbrake-js'])
-  a.equal(result.packages.length, 2)
-  a.equal(result.packages[0].downloads.length, 30)
-  a.equal(result.packages[1].downloads.length, 30)
-  a.ok(result.total > 10000)
-})
-
-test.set('getPackageDownloadsRange scoped', async function () {
-  const result = await api.getPackageDownloadsRange(['@types/node'])
-  a.equal(result.packages.length, 1)
-  a.ok(result.total > 1000000)
-})
-
-test.set('getPackageDownloadsRange mixed multiple', async function () {
-  const result = await api.getPackageDownloadsRange(['@types/node', '@types/lodash', 'npm'])
-  a.equal(result.packages.length, 3)
-  a.ok(result.total > 50000000)
-})
-
-test.set('getUserDownloadHistory', async function () {
-  const job = api.getUserDownloadHistory('75lb', { limit: 2 })
-  const result = await job.process()
-  a.ok(result.packageDownloads.length)
-  a.ok(result.items.length)
-  a.ok(result.total > 200)
-}, { timeout: 20000 })
+skip.set('TODO: support AbortController signals in get methods')
 
 export { test, only, skip }

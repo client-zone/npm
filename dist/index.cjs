@@ -4,7 +4,7 @@ var arrayify = require('array-back');
 var ApiClientBase = require('@client-zone/base');
 var work = require('work');
 
-/*‡
+/* ‡
 __Registry (extends ApiClientBase)__
 
 `new RegistryAPI()`
@@ -13,7 +13,7 @@ See the [docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md)
 */
 
 class NpmRegistry extends ApiClientBase {
-  /*‡
+  /* ‡
   not CORS-friendly. Docs [here](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#getpackage).
   */
   async getPackage (packageName, options = {}) {
@@ -27,10 +27,11 @@ class NpmRegistry extends ApiClientBase {
    * See [docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#get-v1search).
    */
   async search (options = {}) {
-    const url = new URL(`https://registry.npmjs.org/-/v1/search`);
+    const url = new URL('https://registry.npmjs.org/-/v1/search');
     for (const key of Object.keys(options)) {
       url.searchParams.set(key, options[key]);
     }
+    console.log(url.href);
     const data = await this.fetchJson(url);
     let finished = !(data.total > data.objects.length);
     while (!finished) {
@@ -64,7 +65,7 @@ class NpmDownloads extends ApiClientBase {
   }
 
   */
-  getTotalDownloadsQueue (packageNames, point = 'last-month') {
+  getTotalPackageDownloads (packageNames, point = 'last-month') {
     packageNames = arrayify(packageNames);
     const url = `https://api.npmjs.org/downloads/point/${point}`;
 
@@ -140,7 +141,7 @@ class NpmDownloads extends ApiClientBase {
 
   getUserDownloadHistory (user, options) {
     options = Object.assign({
-      maxConcurrency: 10,
+      maxConcurrency: 3,
       limit: Infinity,
       groupByMonth: true,
       includeIndividualPackageDownloads: false
@@ -161,7 +162,7 @@ class NpmDownloads extends ApiClientBase {
       },
       onSuccess: new work.Loop({
         name: 'Get download stats for each package',
-        maxConcurrency: 5,
+        maxConcurrency: 3,
         for: function () {
           return { var: 'pkg', of: this.scope.packages.slice(0, options.limit) }
         },
@@ -193,20 +194,23 @@ class NpmDownloads extends ApiClientBase {
 
   /**
    * Returns all downloads per day for a package.
-   * @param {string} options.since
+   * @param {string|Date} options.from
+   * @param {string} options.to
    * @param {string} options.period
-   * @param {string} options.totalOnly
-   * @param {string} options.groupByMonth
+   * @see https://github.com/npm/registry/blob/main/docs/download-counts.md
    */
   async getPackageDownloadHistory (packageName, options = {}) {
-    const promises = [];
-    if (options.since) {
-      const url = `https://api.npmjs.org/downloads/range/${options.since}:2099-12-31/${packageName}`;
-      promises.push(this.fetchJson(url));
+    const results = [];
+    if (options.from) {
+      typeof options.from === 'string' ? options.from : new Intl.DateTimeFormat('en-ca').format(options.from);
+      const defaultTo = new Intl.DateTimeFormat('en-ca').format(new Date()); // e.g. 2024-09-13
+      const url = `https://api.npmjs.org/downloads/range/${options.from}:${options.to || defaultTo}/${packageName}`;
+      results.push(await this.fetchJson(url));
     } else if (options.period) {
       const url = `https://api.npmjs.org/downloads/range/${options.period}/${packageName}`;
-      promises.push(this.fetchJson(url));
+      results.push(await this.fetchJson(url));
     } else {
+      /* Fetch everything - should only be necessary the first time. After then, use `options.since`. */
       const ranges = [
         '2015-01-01:2016-06-30',
         '2016-07-01:2017-12-31',
@@ -221,103 +225,60 @@ class NpmDownloads extends ApiClientBase {
       ];
       for (const range of ranges) {
         const url = `https://api.npmjs.org/downloads/range/${range}/${packageName}`;
-        promises.push(this.fetchJson(url));
+        results.push(await this.fetchJson(url));
       }
     }
-    let output;
-    try {
-      const results = await Promise.all(promises);
-      output = {
-        start: results[0].start,
-        end: results[0].end,
-        package: results[0].package,
-        items: [],
-        total: 0
-      };
-      for (const json of results) {
-        output.end = json.end;
-        output.items.push(...json.downloads);
-        output.total += json.downloads.reduce((total, curr) => {
-          return (curr.downloads || 0) + total
-        }, 0);
-      }
-    } catch (err) {
-      if (err.response.status === 404) {
-        output = {
-          start: '',
-          end: '',
-          package: packageName,
-          items: [],
-          total: 0
-        };
-      } else {
-        throw err
-      }
+    const output = [];
+    for (const json of results) {
+      output.push(...json.downloads);
     }
 
-    if (options.totalOnly) {
-      delete output.items;
-    } else {
-      output.items = output.items.map(i => ({ date: i.day, total: i.downloads }));
+    return output.map(i => ({ date: i.day, total: i.downloads }))
+  }
+}
 
-      if (options.groupByMonth) {
-        /* group downloads by month */
-        const months = new Map();
-        for (const d of output.items) {
-          const month = d.date.substr(0, 7);
-          const monthTotal = (months.has(month) ? months.get(month) : 0) + d.total;
-          months.set(month, monthTotal);
-        }
-        output.items = Array.from(months).map(m => ({ date: m[0], total: m[1] }));
-      }
-    }
-    return output
+/**
+__Registry (extends ApiClientBase)__
+
+`new RegistryAPI()`
+
+See the [docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md).
+*/
+
+class NpmsApi extends ApiClientBase {
+  async getPackage (packageName) {
+    return this.fetchJson(`https://api.npms.io/v2/package/${packageName}`, {
+      mode: 'cors'
+    })
   }
 
+  /**
+   * Uses npms.io.. Same as the npm registry data, adding score and flags (e.g. deprecated, unstable).
+   * @see https://api-docs.npms.io/
+   * @param [options.from] {string} - The offset in which to start searching from (max of 5000). Default value: 0.
+   */
+  async search (query, options = {}) {
+    options = Object.assign({
+      size: 250,
+      from: 0,
+      maxResults: 2000
+    }, options);
+    const results = [];
+    let finished = false;
 
-  /* Too similar to getPackageDownloadsHistory */
-  async getPackageDownloadsRange (packageNames, period = 'last-month') {
-    packageNames = arrayify(packageNames);
-    const result = { packages: [] };
-    const baseUrl = 'https://api.npmjs.org/downloads/range';
-
-    /* non-scoped names */
-    const nonScopedNames = packageNames.filter(name => !/@/.test(name));
-    if (nonScopedNames.length === 1) {
-      const json1 = await this.fetchJson(`${baseUrl}/${period}/${nonScopedNames[0]}`);
-      result.packages.push({ name: nonScopedNames[0], downloads: json1.downloads });
-    } else {
-      const json1 = await this.fetchJson(`${baseUrl}/${period}/${nonScopedNames.slice(0, 128).join(',')}`);
-      let json2 = {};
-      if (nonScopedNames.length > 128) {
-        /* And what if there are more than 256 packages?  */
-        json2 = await this.fetchJson(`${baseUrl}/${period}/${nonScopedNames.slice(128, 256).join(',')}`);
-      }
-
-
-      for (const packageName of nonScopedNames) {
-        const downloads = json1[packageName] || json2[packageName]
-          ? (json1[packageName] || json2[packageName]).downloads
-          : 0;
-        result.packages.push({ name: packageName, downloads });
-      }
+    while (!finished) {
+      const url = new URL('https://api.npms.io/v2/search');
+      url.searchParams.set('q', query);
+      url.searchParams.set('from', results.length + options.from);
+      url.searchParams.set('size', options.size);
+      const data = await this.fetchJson(url);
+      results.push(...data.results);
+      finished = results.length === data.total || results.length >= options.maxResults;
     }
-
-    /* scoped names - fetching multiple packages not supported */
-    const scopedNames = packageNames.filter(name => /@/.test(name));
-    for (const packageName of scopedNames) {
-      const json = await this.fetchJson(`${baseUrl}/${period}/${packageName}`);
-      result.packages.push({ name: packageName, downloads: json.downloads });
-    }
-
-    result.total = result.packages.reduce((total, curr) => {
-      total += curr.downloads.reduce((total2, curr2) => (total2 += curr2.downloads), 0);
-      return total
-    }, 0);
-    return result
+    return results
   }
 }
 
 exports.NpmDownloads = NpmDownloads;
 exports.NpmRegistry = NpmRegistry;
-exports.NpmsApi = NpmRegistry;
+exports.NpmsApi = NpmsApi;

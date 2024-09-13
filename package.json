@@ -6,7 +6,9 @@
   "repository": "https://github.com/client-zone/npm",
   "type": "module",
   "exports": {
-    "./*": "./lib/*.js"
+    "./downloads": "./lib/downloads.js",
+    "./npms": "./lib/npms-api.js",
+    "./registry": "./lib/registry.js"
   },
   "keywords": [
     "npm",
@@ -34,5 +36,12 @@
     "array-back": "^6.2.2",
     "work": "^0.10.0"
   },
-  "devDependencies": {}
+  "devDependencies": {},
+  "standard": {
+    "ignore": [
+      "dist",
+      "tmp"
+    ],
+    "envs": []
+  }
 }

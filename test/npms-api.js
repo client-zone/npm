@@ -1,4 +1,4 @@
-import NpmApiClient from '@client-zone/npm/npms-api'
+import NpmApiClient from '@client-zone/npm/npms'
 import { strict as a } from 'assert'
 
 // const tom = new Tom({ maxConcurrency: 2 })
