@@ -148,54 +148,6 @@ class ApiClientBase {
   }
 }
 
-/* ‡
-__Registry (extends ApiClientBase)__
-
-`new RegistryAPI()`
-
-See the [docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md).
-*/
-
-class NpmRegistry extends ApiClientBase {
-  /* ‡
-  not CORS-friendly. Docs [here](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#getpackage).
-  */
-  async getPackage (packageName, options = {}) {
-    return this.fetchJson(`https://registry.npmjs.org/${packageName}${options.latest ? '/latest' : ''}`, {
-      mode: 'cors'
-    })
-  }
-
-  /**
-   *
-   * See [docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#get-v1search).
-   */
-  async search (options = {}) {
-    const url = new URL('https://registry.npmjs.org/-/v1/search');
-    for (const key of Object.keys(options)) {
-      url.searchParams.set(key, options[key]);
-    }
-    console.log(url.href);
-    const data = await this.fetchJson(url);
-    let finished = !(data.total > data.objects.length);
-    while (!finished) {
-      url.searchParams.set('from', data.objects.length);
-      const moreData = await this.fetchJson(url);
-      data.objects.push(...moreData.objects);
-      finished = !(data.total > data.objects.length);
-    }
-    return data.objects.map(o => o.package)
-  }
-
-  /**
-   *
-   * See [docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#get-v1search).
-   */
-  async getPackagesByMaintainer (user) {
-    return this.search({ text: `maintainer:${user}`, size: 250 })
-  }
-}
-
 /**
  * @module obso
  */
@@ -744,7 +696,7 @@ var Symbol$1 = root.Symbol,
     splice = arrayProto.splice;
 
 /* Built-in method references that are verified to be native. */
-var Map$1 = getNative(root, 'Map'),
+var Map = getNative(root, 'Map'),
     nativeCreate = getNative(Object, 'create');
 
 /** Used to convert symbols to primitives and strings. */
@@ -989,7 +941,7 @@ function MapCache(entries) {
 function mapCacheClear() {
   this.__data__ = {
     'hash': new Hash,
-    'map': new (Map$1 || ListCache),
+    'map': new (Map || ListCache),
     'string': new Hash
   };
 }
@@ -1931,7 +1883,7 @@ class Loop extends Queue {
   }
 }
 
-var Loop$1 = Loop;
+Loop;
 
 class NpmDownloads extends ApiClientBase {
   /**
@@ -2020,59 +1972,6 @@ class NpmDownloads extends ApiClientBase {
     return queue
   }
 
-  getUserDownloadHistory (user, options) {
-    options = Object.assign({
-      maxConcurrency: 3,
-      limit: Infinity,
-      groupByMonth: true,
-      includeIndividualPackageDownloads: false
-    }, options);
-    const dateTotals = new Map();
-    const result = {
-      // packageNames: [],
-      total: 0,
-      items: [],
-      packageDownloads: []
-    };
-    const api = this;
-    const npmApi = new NpmRegistry(this.options);
-    const job = new Job$1({
-      name: 'getUserDownloadHistory',
-      fn: async function () {
-        this.scope.packages = await npmApi.getPackagesByMaintainer(user);
-      },
-      onSuccess: new Loop$1({
-        name: 'Get download stats for each package',
-        maxConcurrency: 3,
-        for: function () {
-          return { var: 'pkg', of: this.scope.packages.slice(0, options.limit) }
-        },
-        Node: class LoopJob extends Job$1 {
-          async fn () {
-            this.name = this.scope.pkg.name;
-            const pkg = this.scope.pkg;
-            const downloads = await api.getPackageDownloadHistory(pkg.name, options);
-            for (const item of downloads.items) {
-              const total = dateTotals.has(item.date) ? dateTotals.get(item.date) : 0;
-              dateTotals.set(item.date, total + item.total);
-            }
-
-            result.packageDownloads.push(downloads);
-            // result.packageNames.push(downloads.package)
-            result.total += downloads.total;
-            result.items = Array.from(dateTotals).map(r => ({ date: r[0], total: r[1] }));
-          }
-        },
-        onSuccess: new Job$1({
-          name: 'Return result',
-          fn: () => result
-        })
-      })
-    });
-
-    return job
-  }
-
   /**
    * Returns all downloads per day for a package.
    * @param {string|Date} options.from
@@ -2083,9 +1982,10 @@ class NpmDownloads extends ApiClientBase {
   async getPackageDownloadHistory (packageName, options = {}) {
     const results = [];
     if (options.from) {
-      typeof options.from === 'string' ? options.from : new Intl.DateTimeFormat('en-ca').format(options.from);
-      const defaultTo = new Intl.DateTimeFormat('en-ca').format(new Date()); // e.g. 2024-09-13
-      const url = `https://api.npmjs.org/downloads/range/${options.from}:${options.to || defaultTo}/${packageName}`;
+      const dateFormat = new Intl.DateTimeFormat('en-ca'); // e.g. 2024-09-13
+      const from = typeof options.from === 'string' ? options.from : dateFormat.format(options.from);
+      const to = typeof options.to === 'string' ? options.to : dateFormat.format(new Date());
+      const url = `https://api.npmjs.org/downloads/range/${from}:${to}/${packageName}`;
       results.push(await this.fetchJson(url));
     } else if (options.period) {
       const url = `https://api.npmjs.org/downloads/range/${options.period}/${packageName}`;
@@ -2104,10 +2004,14 @@ class NpmDownloads extends ApiClientBase {
         '2024-01-01:2024-06-30',
         '2024-07-01:2024-12-31'
       ];
+      const queue = new Queue({ maxConcurrency: 5 });
       for (const range of ranges) {
         const url = `https://api.npmjs.org/downloads/range/${range}/${packageName}`;
-        results.push(await this.fetchJson(url));
+        queue.add(new Job$1({
+          fn: async () => this.fetchJson(url)
+        }));
       }
+      results.push(...(await queue.process()));
     }
     const output = [];
     for (const json of results) {
@@ -2115,6 +2019,53 @@ class NpmDownloads extends ApiClientBase {
     }
 
     return output.map(i => ({ date: i.day, total: i.downloads }))
+  }
+}
+
+/* ‡
+__Registry (extends ApiClientBase)__
+
+`new RegistryAPI()`
+
+See the [docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md).
+*/
+
+class NpmRegistry extends ApiClientBase {
+  /* ‡
+  not CORS-friendly. Docs [here](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#getpackage).
+  */
+  async getPackage (packageName, options = {}) {
+    return this.fetchJson(`https://registry.npmjs.org/${packageName}${options.latest ? '/latest' : ''}`, {
+      mode: 'cors'
+    })
+  }
+
+  /**
+   *
+   * See [docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#get-v1search).
+   */
+  async search (options = {}) {
+    const url = new URL('https://registry.npmjs.org/-/v1/search');
+    for (const key of Object.keys(options)) {
+      url.searchParams.set(key, options[key]);
+    }
+    const data = await this.fetchJson(url);
+    let finished = !(data.total > data.objects.length);
+    while (!finished) {
+      url.searchParams.set('from', data.objects.length);
+      const moreData = await this.fetchJson(url);
+      data.objects.push(...moreData.objects);
+      finished = !(data.total > data.objects.length);
+    }
+    return data.objects.map(o => o.package)
+  }
+
+  /**
+   *
+   * See [docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#get-v1search).
+   */
+  async getPackagesByMaintainer (user) {
+    return this.search({ text: `maintainer:${user}`, size: 250 })
   }
 }
 

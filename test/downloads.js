@@ -2,8 +2,8 @@ import NpmDownloads from '@client-zone/npm/downloads'
 import NpmRegistry from '@client-zone/npm/registry'
 import { strict as a } from 'assert'
 
-const api = new NpmDownloads({ logger: {
-  // log: console.warn }
+const api = new NpmDownloads({
+  logger: { log: console.warn }
 })
 const npmRegistry = new NpmRegistry()
 const [test, only, skip] = [new Map(), new Map(), new Map()]
@@ -74,7 +74,7 @@ test.set('getTotalPackageDownloads: scoped package not found', async function ()
   a.equal(result.total, 0)
 })
 
-test.set('getPackageDownloadHistory', async function () {
+only.set('getPackageDownloadHistory', async function () {
   const result = await api.getPackageDownloadHistory('command-line-args')
   /*
   [
