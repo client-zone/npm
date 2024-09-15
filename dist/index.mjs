@@ -2022,29 +2022,41 @@ class NpmDownloads extends ApiClientBase {
   }
 }
 
-/* ‡
-__Registry (extends ApiClientBase)__
-
-`new RegistryAPI()`
-
-See the [docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md).
+/*
+See: https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md
 */
 
 class NpmRegistry extends ApiClientBase {
-  /* ‡
-  not CORS-friendly. Docs [here](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#getpackage).
-  */
+  /**
+   * Not CORS-friendly.
+   * Docs: https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#getpackage
+   * Response data: https://github.com/npm/registry/blob/main/docs/responses/package-metadata.md
+   *
+   * [options.latest]{boolean} - Include only the latest version, not all versions
+   * [options.abbreviated]{boolean} - Include only the install data. Doesn't appear to work with `latest`.
+   */
   async getPackage (packageName, options = {}) {
-    return this.fetchJson(`https://registry.npmjs.org/${packageName}${options.latest ? '/latest' : ''}`, {
-      mode: 'cors'
-    })
+    const fetchOptions = {
+      mode: 'cors',
+      headers: {}
+    };
+    if (options.abbreviated) {
+      fetchOptions.headers.accept = 'application/vnd.npm.install-v1+json';
+    }
+    return this.fetchJson(`https://registry.npmjs.org/${packageName}${options.latest ? '/latest' : ''}`, fetchOptions)
   }
 
   /**
    *
    * See [docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#get-v1search).
+   * [options.size]{number} - Max 250
+   * [options.text]{string} - Full-text search string
+   * @example
+   * registryApi.search({ text: `maintainer:75lb` })
+   * registryApi.search({ text: `author:75lb`, size: 10 })
    */
   async search (options = {}) {
+    options.size ||= 250;
     const url = new URL('https://registry.npmjs.org/-/v1/search');
     for (const key of Object.keys(options)) {
       url.searchParams.set(key, options[key]);
@@ -2059,22 +2071,11 @@ class NpmRegistry extends ApiClientBase {
     }
     return data.objects.map(o => o.package)
   }
-
-  /**
-   *
-   * See [docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#get-v1search).
-   */
-  async getPackagesByMaintainer (user) {
-    return this.search({ text: `maintainer:${user}`, size: 250 })
-  }
 }
 
-/**
-__Registry (extends ApiClientBase)__
-
-`new RegistryAPI()`
-
-See the [docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md).
+/*
+npms.io data seems old. Command-line-args was updated 2 months ago, this is wrong: "updated 3 years ago by 75lb"
+@see https://npms.io/search?q=maintainer%3A75lb
 */
 
 class NpmsApi extends ApiClientBase {
@@ -2086,6 +2087,7 @@ class NpmsApi extends ApiClientBase {
 
   /**
    * Uses npms.io.. Same as the npm registry data, adding score and flags (e.g. deprecated, unstable).
+   * This method returns more packages than registry.search.
    * @see https://api-docs.npms.io/
    * @param [options.from] {string} - The offset in which to start searching from (max of 5000). Default value: 0.
    */

@@ -35,7 +35,7 @@ test.set('getTotalPackageDownloads: multiple, last month (default)', async funct
 })
 
 test.set('getTotalPackageDownloads: > 256 packages', async function () {
-  const packageList = await npmRegistry.getPackagesByMaintainer('fb')
+  const packageList = await npmRegistry.search({ text: 'maintainer:fb'})
   const packageNames = packageList.map(p => p.name)
   /* Doesn't support timeout but should do */
   const queue = api.getTotalPackageDownloads(packageNames, 'last-month', { timeout: 40000 })
@@ -74,7 +74,7 @@ test.set('getTotalPackageDownloads: scoped package not found', async function ()
   a.equal(result.total, 0)
 })
 
-only.set('getPackageDownloadHistory', async function () {
+test.set('getPackageDownloadHistory', async function () {
   const result = await api.getPackageDownloadHistory('command-line-args')
   /*
   [

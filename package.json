@@ -7,7 +7,7 @@
   "type": "module",
   "exports": {
     "./downloads": "./lib/downloads.js",
-    "./npms": "./lib/npms-api.js",
+    "./npms": "./lib/npms.js",
     "./registry": "./lib/registry.js"
   },
   "keywords": [

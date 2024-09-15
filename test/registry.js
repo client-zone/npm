@@ -1,7 +1,6 @@
 import NpmRegistry from '@client-zone/npm/registry'
 import { strict as a } from 'assert'
 
-// const tom = new Tom({ maxConcurrency: 2 })
 const api = new NpmRegistry()
 const [test, only, skip] = [new Map(), new Map(), new Map()]
 
@@ -10,13 +9,8 @@ test.set('getPackage', async function () {
   a.equal(result.name, 'renamer')
 })
 
-test.set('getPackagesByMaintainer', async function () {
-  const result = await api.getPackagesByMaintainer('75lb')
-  a.ok(result.length > 100)
-})
-
-test.set('getPackagesByMaintainer - over 250 packages', async function () {
-  const result = await api.getPackagesByMaintainer('fb')
+test.set('search: over 250 packages', async function () {
+  const result = await api.search({ text: 'maintainer:fb' })
   a.ok(result.length > 300)
 })
 
