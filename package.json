@@ -1,7 +1,7 @@
 {
   "name": "@client-zone/npm",
   "author": "Lloyd Brookes <75pound@gmail.com>",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "An npm API client",
   "repository": "https://github.com/client-zone/npm",
   "type": "module",
