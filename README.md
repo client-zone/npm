@@ -7,11 +7,9 @@
 
 # @client-zone/npm
 
-npm-api downloads user "75lb"
-npm-api downloads package renamer
+
 
 * * *
 
 &copy; 2021-24 [Lloyd Brookes](https://github.com/75lb) \<75pound@gmail.com\>.
 
-Tested by [test-runner](https://github.com/test-runner-js/test-runner). Documented by [jsdoc-to-markdown](https://github.com/jsdoc2md/jsdoc-to-markdown).
