@@ -8,7 +8,8 @@
   "exports": {
     "./downloads": "./lib/downloads.js",
     "./npms": "./lib/npms.js",
-    "./registry": "./lib/registry.js"
+    "./registry": "./lib/registry.js",
+    "./scrape": "./lib/scrape.js"
   },
   "keywords": [
     "npm",

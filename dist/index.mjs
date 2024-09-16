@@ -107,6 +107,8 @@ class ApiClientBase {
     }
 
     this.logger.log(`Fetched: ${url}, Response: ${response.status}, Duration: ${Date.now() - now}ms`);
+
+    /* TODO: move this response test into fetchJson and fetchText.. let .fetch() return the response so the user can inspect it as required, or use fetchJson if inspecting is not required. */
     if (response.ok) {
       return response
     } else {
