@@ -37,7 +37,7 @@
   "dependencies": {
     "@client-zone/base": "^0.8.1",
     "array-back": "^6.2.2",
-    "work": "file:../../75lb/work"
+    "work": "^0.11.1"
   },
   "standard": {
     "ignore": [

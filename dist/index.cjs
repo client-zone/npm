@@ -256,6 +256,9 @@ class NpmRegistry extends ApiClientBase {
   }
 }
 
+/**
+ * Currently blocked by Cloudflare. Could be fixed by using Puppeteer.
+ */
 class NpmScrape extends ApiClientBase {
   async getDependents (packageName) {
     let inProgress = true;
