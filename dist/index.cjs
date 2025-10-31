@@ -2,7 +2,75 @@
 
 var arrayify = require('array-back');
 var ApiClientBase = require('@client-zone/base');
-var work = require('work');
+
+class Queue {
+  commands = []
+  stats = {
+    total: 0,
+    complete: 0,
+    active: 0
+  }
+
+  constructor (options = {}) {
+    this.maxConcurrency = options.maxConcurrency || 1;
+  }
+
+  add (command, ...args) {
+    this.commands.push({ command, args });
+    this.stats.total++;
+  }
+
+  /**
+   * Iterate over `commands` invoking no more than `maxConcurrency` at once. Yield results on receipt.
+   */
+  /* TODO: yield { command, event: 'start' } or similar, rather than only yielding on completion or emitting a "start" event. Is this async yielding of start/end events possible like it is with events? */
+  /* TODO: Real-life updating of slotsAvailable if new commands are added while processing is in progress */
+  async * [Symbol.asyncIterator] () {
+    while (this.commands.length) {
+      const slotsAvailable = Math.min(this.maxConcurrency - this.stats.active, this.commands.length);
+      if (slotsAvailable > 0) {
+        const toRun = [];
+        for (let i = 0; i < slotsAvailable; i++) {
+          let { command, args } = this.commands.shift();
+          if (!Array.isArray(args)) {
+            args = [args];
+          }
+          let executable;
+          if (typeof command === 'function') {
+            executable = command;
+          } else if (typeof command === 'object' && typeof command.execute === 'function') {
+            executable = command.execute.bind(command);
+          } else {
+            throw new Error('Command structure not recognised')
+          }
+          /* Execute the command */
+          this.stats.active++;
+          const commandPromise = executable(...args).then(result => {
+            this.stats.active -= 1;
+            this.stats.complete += 1;
+            return result
+          });
+          toRun.push(commandPromise);
+        }
+        const completedCommands = await Promise.all(toRun);
+        for (const command of completedCommands) {
+          yield command;
+        }
+      }
+    }
+  }
+
+  /**
+  Returns an array containing the results of each node in the queue.
+  */
+  async process () {
+    const output = [];
+    for await (const result of this) {
+      output.push(result);
+    }
+    return output
+  }
+}
 
 class NpmDownloads extends ApiClientBase {
   /**
@@ -17,7 +85,7 @@ class NpmDownloads extends ApiClientBase {
   }
 
   */
-  getTotalPackageDownloads (packageNames, point = 'last-month') {
+  async getTotalPackageDownloads (packageNames, point = 'last-month') {
     packageNames = arrayify(packageNames);
     const url = `https://api.npmjs.org/downloads/point/${point}`;
 
@@ -26,69 +94,60 @@ class NpmDownloads extends ApiClientBase {
       total: 0
     };
 
-    const queue = new work.Queue({
-      name: `Collect package downloads: ${point}`
-    });
+    const queue = new Queue();
 
     /* non-scoped names */
     const nonScopedNames = packageNames.filter(name => !/@/.test(name));
     if (nonScopedNames.length === 1) {
-      queue.add(new work.Job({
-        name: 'Get single package non-scoped downloads: ' + nonScopedNames[0],
-        fn: async () => {
-          const data = await this.fetchJson(`${url}/${nonScopedNames[0]}`);
-          result.packages.push({ name: nonScopedNames[0], downloads: data.downloads });
-        }
-      }));
+      queue.add(async () => {
+        const data = await this.fetchJson(`${url}/${nonScopedNames[0]}`);
+        result.packages.push({ name: nonScopedNames[0], downloads: data.downloads });
+      });
     } else {
       while (nonScopedNames.length) {
         const names = nonScopedNames.splice(0, 128);
-        queue.add(new work.Job({
-          name: 'Get batch of scoped downloads: ' + names.length,
-          fn: async () => {
-            /* bulk query */
-            const data = await this.fetchJson(`${url}/${names.join(',')}`);
-            for (const prop of Object.keys(data)) {
-              result.packages.push({
-                name: prop,
-                downloads: data[prop] ? data[prop].downloads : 0
-              });
-            }
+        queue.add(async () => {
+          /* bulk query */
+          const data = await this.fetchJson(`${url}/${names.join(',')}`);
+          for (const prop of Object.keys(data)) {
+            result.packages.push({
+              name: prop,
+              downloads: data[prop] ? data[prop].downloads : 0
+            });
           }
-        }));
+        });
       }
     }
 
     /* scoped names, bulk queries not supported */
     const scopedNames = packageNames.filter(name => /@/.test(name));
     for (const packageName of scopedNames) {
-      queue.add(new work.Job({
-        name: 'Get scoped package downloads: ' + packageName,
-        fn: async () => {
-          try {
-            const json = await this.fetchJson(`${url}/${packageName}`);
-            result.packages.push({ name: packageName, downloads: json.downloads });
-          } catch (err) {
-            if (err.response.status === 404) {
-              result.packages.push({ name: packageName, downloads: 0 });
-            } else {
-              throw err
-            }
+      queue.add(async () => {
+        try {
+          const json = await this.fetchJson(`${url}/${packageName}`);
+          result.packages.push({ name: packageName, downloads: json.downloads });
+        } catch (err) {
+          if (err.response.status === 404) {
+            result.packages.push({ name: packageName, downloads: 0 });
+          } else {
+            throw err
           }
         }
-      }));
+      });
     }
 
-    queue.onSuccess = new work.Job({
-      name: 'Compute totals',
-      fn: function () {
-        result.total = result.packages
-          .map(p => p.downloads)
-          .reduce((total, curr) => (total += curr), 0);
-        return result
-      }
+    await queue.process();
+
+    const statsQueue = new Queue();
+    statsQueue.add(async function () {
+      result.total = result.packages
+        .map(p => p.downloads)
+        .reduce((total, curr) => (total += curr), 0);
+      return result
     });
-    return queue
+
+    await statsQueue.process();
+    return result
   }
 
   /**
@@ -121,16 +180,22 @@ class NpmDownloads extends ApiClientBase {
         '2023-01-01:2023-06-30',
         '2023-07-01:2023-12-31',
         '2024-01-01:2024-06-30',
-        '2024-07-01:2024-12-31'
+        '2024-07-01:2024-12-31',
+        '2025-01-01:2025-06-30',
+        '2025-07-01:2025-12-31',
+        // '2026-01-01:2026-06-30',
+        // '2026-07-01:2026-12-31',
+        // '2027-01-01:2027-06-30',
+        // '2027-07-01:2027-12-31',
       ];
-      const queue = new work.Queue({ maxConcurrency: 5 });
+      const queue = new Queue({ maxConcurrency: 5 });
       for (const range of ranges) {
         const url = `https://api.npmjs.org/downloads/range/${range}/${packageName}`;
-        queue.add(new work.Job({
-          fn: async () => this.fetchJson(url)
-        }));
+        queue.add(async () => this.fetchJson(url));
       }
-      results.push(...(await queue.process()));
+      const processed = await queue.process();
+      // console.log(processed)
+      results.push(...processed);
     }
     const output = [];
     for (const json of results) {

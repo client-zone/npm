@@ -1,26 +1,36 @@
 import NpmDownloads from '@client-zone/npm/downloads'
-import NpmRegistry from '@client-zone/npm/registry'
 import { strict as a } from 'assert'
+import util from 'node:util'
+util.inspect.defaultOptions.depth = 6
+util.inspect.defaultOptions.breakLength = process.stdout.columns
+util.inspect.defaultOptions.maxArrayLength = Infinity
 
-const api = new NpmDownloads({
-  logger: { log: console.warn }
-})
-const npmRegistry = new NpmRegistry()
+const api = new NpmDownloads({ console })
 const [test, only, skip] = [new Map(), new Map(), new Map()]
 
 test.set('getTotalPackageDownloads: last month (default)', async function () {
-  const queue = api.getTotalPackageDownloads(['renamer'])
-  const result = await queue.process()
+  const result = await api.getTotalPackageDownloads(['renamer'])
+  // this.data = result
   /*
-  { packages: [ { name: 'renamer', downloads: 71549 } ], total: 71549 }
+  { packages: [ { name: 'renamer', downloads: 104078 } ], total: 104078 }
   */
   a.equal(result.packages.length, 1)
-  a.ok(result.total > 50000)
+  a.ok(result.total > 50_000 && result.total < 900_000)
+})
+
+test.set('getTotalPackageDownloads: last year', async function () {
+  const result = await api.getTotalPackageDownloads(['renamer'], 'last-year')
+  // this.data = result
+  /*
+  { packages: [ { name: 'renamer', downloads: 1008638 } ], total: 1008638 }
+  */
+  a.equal(result.packages.length, 1)
+  a.ok(result.total > 900_000)
 })
 
 test.set('getTotalPackageDownloads: multiple, last month (default)', async function () {
-  const queue = api.getTotalPackageDownloads(['renamer', 'handbrake-js'])
-  const result = await queue.process()
+  const result = await api.getTotalPackageDownloads(['renamer', 'handbrake-js'])
+  // this.data = result
   /*
   {
     packages: [
@@ -35,11 +45,10 @@ test.set('getTotalPackageDownloads: multiple, last month (default)', async funct
 })
 
 test.set('getTotalPackageDownloads: > 256 packages', async function () {
-  const packageList = await npmRegistry.search({ text: 'maintainer:fb'})
-  const packageNames = packageList.map(p => p.name)
-  /* Doesn't support timeout but should do */
-  const queue = api.getTotalPackageDownloads(packageNames, 'last-month', { timeout: 40000 })
-  const result = await queue.process()
+  const packageNames = (await import('./fixture/fb-npm-packages.js')).default
+  /* Doesn't yet support timeout but should do */
+  const result = await api.getTotalPackageDownloads(packageNames, 'last-month', { timeout: 40000 })
+  // this.data = result
   /*
   {
      packages: [
@@ -56,9 +65,11 @@ test.set('getTotalPackageDownloads: > 256 packages', async function () {
   a.ok(result.total > 50000)
 })
 
+
+/* When not found, the total downloads is set to 0. This alone is not sufficient indication that the package doesn't exist as an existing package could have 0 downloads too. */
 test.set('getTotalPackageDownloads: scoped package not found', async function () {
-  const queue = api.getTotalPackageDownloads(['@akdfdsaf/jdshfauybsfuyabdflbasdfdksahjsdhksdf'])
-  const result = await queue.process()
+  const result = await api.getTotalPackageDownloads(['@akdfdsaf/jdshfauybsfuyabdflbasdfdksahjsdhksdf'])
+  // this.data = result
   /*
   {
     packages: [
@@ -76,6 +87,8 @@ test.set('getTotalPackageDownloads: scoped package not found', async function ()
 
 test.set('getPackageDownloadHistory', async function () {
   const result = await api.getPackageDownloadHistory('command-line-args')
+  const sum = result.reduce((total, item) => total + item.total, 0)
+  // this.data = result
   /*
   [
     { date: '2015-03-15', total: 116 },
@@ -86,6 +99,7 @@ test.set('getPackageDownloadHistory', async function () {
   ]
   */
   a.ok(result.length > 1500)
+  a.ok(sum > 400_000_000)
 })
 
 test.set('getPackageDownloadHistory: handle package not found', async function () {

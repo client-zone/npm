@@ -12,5 +12,5 @@ if (result.process) {
 }
 
 /* E.g.
-node bin/downloads.js getUserDownloadHistory '"loris"'
+node bin/downloads.js getTotalPackageDownloads '"renamer"'
 */
