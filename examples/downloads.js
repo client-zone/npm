@@ -7,6 +7,6 @@ const result = await api[method](...(args.map(a => JSON.parse(a))))
 console.log(JSON.stringify(result, null, '  '))
 
 /* Example commands
-node bin/downloads.js getTotalPackageDownloads '"renamer"' '"last-year"'
-node bin/downloads.js getPackageDownloadHistory '"renamer"'
+node examples/downloads.js getTotalPackageDownloads '"renamer"' '"last-year"'
+node examples/downloads.js getPackageDownloadHistory '"renamer"'
 */

@@ -1,6 +1,6 @@
 {
   "name": "@client-zone/npm",
-  "author": "Lloyd Brookes <75pound@gmail.com>",
+  "author": "Lloyd Brookes <opensource@75lb.com> (http://75lb.com)",
   "version": "0.4.1",
   "description": "An npm API client",
   "repository": {
@@ -8,17 +8,8 @@
     "url": "git+https://github.com/client-zone/npm.git"
   },
   "type": "module",
-  "exports": {
-    "./downloads": "./lib/downloads.js",
-    "./npms": "./lib/npms.js",
-    "./registry": "./lib/registry.js",
-    "./scrape": "./lib/scrape.js"
-  },
-  "keywords": [
-    "npm",
-    "api",
-    "client"
-  ],
+  "exports": "./index.js",
+  "keywords": [],
   "license": "MIT",
   "engines": {
     "node": ">=18"
@@ -26,23 +17,30 @@
   "scripts": {
     "test": "npm run dist && npm run test:ci",
     "test:ci": "75lb-nature test-runner test/*.js",
-    "dist": "75lb-nature cjs-build index.js && 75lb-nature simple-rollup index.js",
-    "dl": "node bin/downloads.js getUserDownloadHistory '\"75lb\"' > tmp/75lb-downloads.json"
+    "dist": "75lb-nature simple-rollup index.js"
+  },
+  "peerDependencies": {
+    "@75lb/nature": "latest"
+  },
+  "peerDependenciesMeta": {
+    "@75lb/nature": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@client-zone/base": "^0.8.1",
+    "array-back": "^6.2.2",
+    "work": "^0.11.1"
   },
   "files": [
     "index.js",
     "dist",
     "lib"
   ],
-  "dependencies": {
-    "@client-zone/base": "^0.8.1",
-    "array-back": "^6.2.2",
-    "work": "^0.11.1"
-  },
   "standard": {
     "ignore": [
-      "dist",
-      "tmp"
+      "tmp",
+      "dist"
     ],
     "envs": []
   }

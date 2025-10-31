@@ -1,4 +1,4 @@
-import NpmRegistry from '@client-zone/npm/registry'
+import { NpmRegistry } from '@client-zone/npm'
 import { strict as a } from 'assert'
 
 const api = new NpmRegistry()

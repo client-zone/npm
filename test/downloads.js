@@ -1,9 +1,5 @@
-import NpmDownloads from '@client-zone/npm/downloads'
+import { NpmDownloads } from '@client-zone/npm'
 import { strict as a } from 'assert'
-import util from 'node:util'
-util.inspect.defaultOptions.depth = 6
-util.inspect.defaultOptions.breakLength = process.stdout.columns
-util.inspect.defaultOptions.maxArrayLength = Infinity
 
 const api = new NpmDownloads({ console })
 const [test, only, skip] = [new Map(), new Map(), new Map()]

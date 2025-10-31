@@ -7,6 +7,6 @@ const result = await api[method](...(args.map(a => JSON.parse(a))))
 console.log(JSON.stringify(result, null, '  '))
 
 /* Example commands
-node bin/registry.js getPackage '"work"'
-node bin/registry.js search '{ "text": "maintainer:75lb" }'
+node examples/registry.js getPackage '"work"'
+node examples/registry.js search '{ "text": "maintainer:75lb" }'
 */

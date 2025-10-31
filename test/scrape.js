@@ -1,4 +1,4 @@
-import NpmScrape from '@client-zone/npm/scrape'
+import { NpmScrape } from '@client-zone/npm'
 import { strict as a } from 'assert'
 
 const api = new NpmScrape({ console })
