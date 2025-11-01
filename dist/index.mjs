@@ -228,19 +228,25 @@ class Queue {
   }
 }
 
+/**
+ * API Client for the npm download-counts API.
+ *
+ * @see https://github.com/npm/registry/blob/main/docs/download-counts.md
+ */
 class NpmDownloads extends ApiClientBase {
+
   /**
-  SEE: https://github.com/npm/registry/blob/master/docs/download-counts.md#point-values
-  Outputs a single total, e.g.:
-
-  {
-   downloads: 31623,
-   start: "2014-01-01",
-   end: "2014-01-31",
-   package: "jquery"
-  }
-
-  */
+   * Outputs a single total, e.g.:
+   *
+   * {
+   *  downloads: 31623,
+   *  start: "2014-01-01",
+   *  end: "2014-01-31",
+   *  package: "jquery"
+   * }
+   *
+   * @see https://github.com/npm/registry/blob/master/docs/download-counts.md#point-values
+   */
   async getTotalPackageDownloads (packageNames, point = 'last-month') {
     packageNames = arrayify(packageNames);
     const url = `https://api.npmjs.org/downloads/point/${point}`;
@@ -412,43 +418,4 @@ class NpmRegistry extends ApiClientBase {
   }
 }
 
-/**
- * Currently blocked by Cloudflare. Could be fixed by using Puppeteer.
- */
-class NpmScrape extends ApiClientBase {
-  async getDependents (packageName) {
-    let inProgress = true;
-    let offset = 0;
-    const output = [];
-    while (inProgress) {
-      let html;
-      try {
-        html = await this.fetchText(`https://www.npmjs.com/browse/depended/${packageName}?offset=${offset}`);
-      } catch (err) {
-        if (err?.response?.status === 400) {
-          html = err.response.body;
-          /*
-          keep going - update ApiClientBase to NOT throw on 4xx. But then .fetchText would need to return `response` instead of text so maybe just call this.fetch directly if you want to inspect the response.
-          */
-        } else {
-          throw err
-        }
-      }
-      const matches = html.match(/window\.__context__ = (\{.*\})/m);
-      if (matches.length) {
-        const json = JSON.parse(matches[1]);
-        output.push(...json.context.packages);
-        // console.log(json.context)
-        if (json.context.hasNext === false) {
-          inProgress = false;
-        }
-        offset += json.context.paginationSize;
-      } else {
-        throw new Error('JSON data not found in page')
-      }
-    }
-    return output
-  }
-}
-
-export { NpmDownloads, NpmRegistry, NpmScrape };
+export { NpmDownloads, NpmRegistry };

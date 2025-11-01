@@ -26,7 +26,7 @@ test.set('getTotalPackageDownloads: last year', async function () {
 
 test.set('getTotalPackageDownloads: multiple, last month (default)', async function () {
   const result = await api.getTotalPackageDownloads(['renamer', 'handbrake-js'])
-  // this.data = result
+  this.data = result
   /*
   {
     packages: [

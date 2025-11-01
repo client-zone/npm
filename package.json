@@ -17,7 +17,8 @@
   "scripts": {
     "test": "npm run dist && npm run test:ci",
     "test:ci": "75lb-nature test-runner test/*.js",
-    "dist": "75lb-nature simple-rollup index.js"
+    "dist": "75lb-nature simple-rollup index.js",
+    "docs": "75lb-nature jsdoc2md lib/downloads.js > docs/downloads.md"
   },
   "peerDependencies": {
     "@75lb/nature": "latest"

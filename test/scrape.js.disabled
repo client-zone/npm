@@ -5,11 +5,10 @@ const api = new NpmScrape({ console })
 const [test, only, skip] = [new Map(), new Map(), new Map()]
 
 /**
- * Currently blocked by Cloudflare. Could be fixed by using Puppeteer.
+ * Scraping is currently blocked by Cloudflare. Disabling for now. Could be fixed by using Puppeteer.
  */
 skip.set('getDependents', async function () {
   const result = await api.getDependents('jsdoc-api')
-  // this.data = result.length
   a.ok(result.length > 60)
 })
 
