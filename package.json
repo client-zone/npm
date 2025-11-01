@@ -1,7 +1,7 @@
 {
   "name": "@client-zone/npm",
   "author": "Lloyd Brookes <opensource@75lb.com> (http://75lb.com)",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "An API client to access npm download and registry data",
   "repository": {
     "type": "git",
