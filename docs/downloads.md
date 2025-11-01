@@ -7,24 +7,36 @@ API Client for the npm download-counts API.
 **See**: https://github.com/npm/registry/blob/main/docs/download-counts.md  
 
 * [NpmDownloads](#NpmDownloads)
-    * [.getTotalPackageDownloads()](#NpmDownloads+getTotalPackageDownloads)
+    * [.getTotalPackageDownloads(packageNames, point)](#NpmDownloads+getTotalPackageDownloads)
     * [.getPackageDownloadHistory()](#NpmDownloads+getPackageDownloadHistory)
 
 <a name="NpmDownloads+getTotalPackageDownloads"></a>
 
-### npm.getTotalPackageDownloads()
+### npm.getTotalPackageDownloads(packageNames, point)
+**Kind**: instance method of [<code>NpmDownloads</code>](#NpmDownloads)  
+**See**: https://github.com/npm/registry/blob/master/docs/download-counts.md#point-values  
+
+| Param | Type | Default | Description |
+| --- | --- | --- | --- |
+| packageNames | <code>Array.&lt;string&gt;</code> |  | One or more package names |
+| point | <code>string</code> | <code>&quot;last-month&quot;</code> | One of the point values described in the [docs](https://github.com/npm/registry/blob/master/docs/download-counts.md#point-values). |
+
+**Example**  
+This request..
+```js
+const result = await npm.getTotalPackageDownloads(['renamer', 'handbrake-js'], 'last-year')
+```
+
+returns..
 ```
 {
   packages: [
-    { name: 'renamer', downloads: 106204 },
-    { name: 'handbrake-js', downloads: 5878 }
+    { name: 'renamer', downloads: 1062040 },
+    { name: 'handbrake-js', downloads: 58780 }
   ],
-  total: 112082
+  total: 1120820
 }
 ```
-
-**Kind**: instance method of [<code>NpmDownloads</code>](#NpmDownloads)  
-**See**: https://github.com/npm/registry/blob/master/docs/download-counts.md#point-values  
 <a name="NpmDownloads+getPackageDownloadHistory"></a>
 
 ### npm.getPackageDownloadHistory()
