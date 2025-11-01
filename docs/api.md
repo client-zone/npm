@@ -71,6 +71,6 @@ See [docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#get-
 
 **Example**  
 ```js
-registryApi.search({ text: `maintainer:75lb` })
-registryApi.search({ text: `author:75lb`, size: 10 })
+npm.search({ text: `maintainer:75lb` })
+npm.search({ text: `author:75lb`, size: 10 })
 ```

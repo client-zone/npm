@@ -169,8 +169,8 @@ class NpmApi extends ApiClientBase {
    * @param [options.size] {number} - Max 250
    * @param [options.text] {string} - Full-text search string
    * @example
-   * registryApi.search({ text: `maintainer:75lb` })
-   * registryApi.search({ text: `author:75lb`, size: 10 })
+   * npm.search({ text: `maintainer:75lb` })
+   * npm.search({ text: `author:75lb`, size: 10 })
    */
   async search (options = {}) {
     options.size ||= 250
