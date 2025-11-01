@@ -125,7 +125,7 @@ test.set('getPackageDownloadHistory: from, to', async function () {
 skip.set('TODO: support AbortController signals in get methods')
 
 test.set('getPackage', async function () {
-  const result = await api.getPackage(['renamer'])
+  const result = await api.getPackage('renamer')
   a.equal(result.name, 'renamer')
 })
 

@@ -10,7 +10,6 @@ import { Command, Queue } from 'work'
  * An isomorphic API client to access npm download and registry data.
  *
  * @typicalname npm
- * @see https://github.com/npm/registry/blob/main/docs/download-counts.md
  * @alias module:@client-zone/npm
  */
 class NpmApi extends ApiClientBase {
@@ -89,6 +88,7 @@ class NpmApi extends ApiClientBase {
    * Returns daily download totals for a package over a given time period.
    *
    * @param {string} - npm package name
+   * @param [options] {object}
    * @param [options.period] {string} - One of the point values specified [here](https://github.com/npm/registry/blob/main/docs/download-counts.md#parameters) (e.g. `last-day`, `last-week` etc). Either specify `options.period` or `options.from` (and optionally `options.to`) but not both.
    * @param [options.from] {string|Date} - Time period start date.
    * @param [options.to] {string|Date} - Time period end date. If `from` is specified but `to` is not, `to` defaults to today's date.
@@ -143,9 +143,10 @@ class NpmApi extends ApiClientBase {
   }
 
     /**
-   * Not CORS-friendly. [Docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#getpackage). [Response data](https://github.com/npm/registry/blob/main/docs/responses/package-metadata.md).
+   * [Docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#getpackage). [Response data](https://github.com/npm/registry/blob/main/docs/responses/package-metadata.md).
    *
    * @param {string} - package name
+   * @param [options] {object}
    * @param [options.latest] {boolean} - Include only the latest version, not all versions
    * @param [options.abbreviated] {boolean} - Include only the install data. Doesn't appear to work with `latest`.
    */
@@ -164,6 +165,7 @@ class NpmApi extends ApiClientBase {
    *
    * See [docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#get-v1search).
    *
+   * @param [options] {object}
    * @param [options.size] {number} - Max 250
    * @param [options.text] {string} - Full-text search string
    * @example

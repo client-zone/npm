@@ -14,7 +14,7 @@ First, load and instance the client.
 
 ```js
 import NpmApi from '@client-zone/npm'
-const npm = new NpmApi({ console })
+const npm = new NpmApi()
 ```
 
 ### Total package downloads over a given time period
@@ -59,7 +59,7 @@ returns..
 ### Fetch package manifest data
 
 ```js
-await api.getPackage(['work'], { latest: true })
+await api.getPackage('work', { latest: true })
 ```
 
 Returns..
