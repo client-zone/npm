@@ -1,36 +1,23 @@
+/**
+ * @module @client-zone/npm
+ */
+
 import arrayify from 'array-back'
 import ApiClientBase from '@client-zone/base'
 import { Command, Queue } from 'work'
 
 /**
- * API Client for the npm download-counts API.
+ * An isomorphic API client to access npm download and registry data.
  *
  * @typicalname npm
  * @see https://github.com/npm/registry/blob/main/docs/download-counts.md
+ * @alias module:@client-zone/npm
  */
 class NpmApi extends ApiClientBase {
 
   /**
    * @param {string[]} - One or more package names
-   * @param {string} - One of the point values described in the [docs](https://github.com/npm/registry/blob/master/docs/download-counts.md#point-values).
-   *
-   * @example
-   * This request..
-   * ```js
-   * const result = await npm.getTotalPackageDownloads(['renamer', 'handbrake-js'], 'last-year')
-   * ```
-   *
-   * returns..
-   * ```
-   * {
-   *   packages: [
-   *     { name: 'renamer', downloads: 1062040 },
-   *     { name: 'handbrake-js', downloads: 58780 }
-   *   ],
-   *   total: 1120820
-   * }
-   * ```
-   *
+   * @param [point] {string} - One of the point values described in the [docs](https://github.com/npm/registry/blob/master/docs/download-counts.md#point-values).
    * @see https://github.com/npm/registry/blob/master/docs/download-counts.md#point-values
    */
   async getTotalPackageDownloads (packageNames, point = 'last-month') {
@@ -101,9 +88,10 @@ class NpmApi extends ApiClientBase {
   /**
    * Returns daily download totals for a package over a given time period.
    *
-   * @param [options.from] {string|Date}
-   * @param [options.to] {string|Date}
-   * @param [options.period] {string}
+   * @param {string} - npm package name
+   * @param [options.period] {string} - One of the point values specified [here](https://github.com/npm/registry/blob/main/docs/download-counts.md#parameters) (e.g. `last-day`, `last-week` etc). Either specify `options.period` or `options.from` (and optionally `options.to`) but not both.
+   * @param [options.from] {string|Date} - Time period start date.
+   * @param [options.to] {string|Date} - Time period end date. If `from` is specified but `to` is not, `to` defaults to today's date.
    * @see https://github.com/npm/registry/blob/main/docs/download-counts.md
    */
   async getPackageDownloadHistory (packageName, options = {}) {
@@ -155,12 +143,11 @@ class NpmApi extends ApiClientBase {
   }
 
     /**
-   * Not CORS-friendly.
-   * Docs: https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#getpackage
-   * Response data: https://github.com/npm/registry/blob/main/docs/responses/package-metadata.md
+   * Not CORS-friendly. [Docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#getpackage). [Response data](https://github.com/npm/registry/blob/main/docs/responses/package-metadata.md).
    *
-   * [options.latest]{boolean} - Include only the latest version, not all versions
-   * [options.abbreviated]{boolean} - Include only the install data. Doesn't appear to work with `latest`.
+   * @param {string} - package name
+   * @param [options.latest] {boolean} - Include only the latest version, not all versions
+   * @param [options.abbreviated] {boolean} - Include only the install data. Doesn't appear to work with `latest`.
    */
   async getPackage (packageName, options = {}) {
     const fetchOptions = {
@@ -176,8 +163,9 @@ class NpmApi extends ApiClientBase {
   /**
    *
    * See [docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#get-v1search).
-   * [options.size]{number} - Max 250
-   * [options.text]{string} - Full-text search string
+   *
+   * @param [options.size] {number} - Max 250
+   * @param [options.text] {string} - Full-text search string
    * @example
    * registryApi.search({ text: `maintainer:75lb` })
    * registryApi.search({ text: `author:75lb`, size: 10 })
