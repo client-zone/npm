@@ -35,8 +35,7 @@
   },
   "files": [
     "index.js",
-    "dist",
-    "lib"
+    "dist"
   ],
   "standard": {
     "ignore": [
