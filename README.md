@@ -6,6 +6,39 @@
 
 # @client-zone/npm
 
+An isomorphic API client to access npm download and registry data. Full API Reference docs here.
+
+## Examples
+
+First, load and instance the client.
+
+```js
+import NpmApi from '@client-zone/npm'
+const npm = new NpmApi({ console })
+```
+
+### Package downloads over a given time period
+
+This request..
+
+```js
+await npm.getTotalPackageDownloads(['renamer', 'handbrake-js'], 'last-year')
+```
+
+returns..
+
+```
+{
+ packages: [
+   { name: 'renamer', downloads: 1062040 },
+   { name: 'handbrake-js', downloads: 58780 }
+ ],
+ total: 1120820
+}
+```
+
+
+
 * * *
 
 &copy; 2021-2025 [Lloyd Brookes](https://github.com/75lb) \<opensource@75lb.com\>.

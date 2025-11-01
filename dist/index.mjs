@@ -231,19 +231,31 @@ class Queue {
 /**
  * API Client for the npm download-counts API.
  *
+ * @typicalname npm
  * @see https://github.com/npm/registry/blob/main/docs/download-counts.md
  */
-class NpmDownloads extends ApiClientBase {
+class NpmApi extends ApiClientBase {
 
   /**
-   * Outputs a single total, e.g.:
+   * @param {string[]} - One or more package names
+   * @param {string} - One of the point values described in the [docs](https://github.com/npm/registry/blob/master/docs/download-counts.md#point-values).
    *
+   * @example
+   * This request..
+   * ```js
+   * const result = await npm.getTotalPackageDownloads(['renamer', 'handbrake-js'], 'last-year')
+   * ```
+   *
+   * returns..
+   * ```
    * {
-   *  downloads: 31623,
-   *  start: "2014-01-01",
-   *  end: "2014-01-31",
-   *  package: "jquery"
+   *   packages: [
+   *     { name: 'renamer', downloads: 1062040 },
+   *     { name: 'handbrake-js', downloads: 58780 }
+   *   ],
+   *   total: 1120820
    * }
+   * ```
    *
    * @see https://github.com/npm/registry/blob/master/docs/download-counts.md#point-values
    */
@@ -313,19 +325,21 @@ class NpmDownloads extends ApiClientBase {
   }
 
   /**
-   * Returns all downloads per day for a package.
-   * @param {string|Date} options.from
-   * @param {string} options.to
-   * @param {string} options.period
+   * Returns daily download totals for a package over a given time period.
+   *
+   * @param [options.from] {string|Date}
+   * @param [options.to] {string|Date}
+   * @param [options.period] {string}
    * @see https://github.com/npm/registry/blob/main/docs/download-counts.md
    */
   async getPackageDownloadHistory (packageName, options = {}) {
     const results = [];
     if (options.from) {
       const dateFormat = new Intl.DateTimeFormat('en-ca'); // e.g. 2024-09-13
-      const from = typeof options.from === 'string' ? options.from : dateFormat.format(options.from);
-      const to = typeof options.to === 'string' ? options.to : dateFormat.format(new Date());
-      const url = `https://api.npmjs.org/downloads/range/${from}:${to}/${packageName}`;
+      options.to ||= new Date();
+      if (options.from instanceof Date) options.from = dateFormat.format(options.from);
+      if (options.to instanceof Date) options.to = dateFormat.format(options.to);
+      const url = `https://api.npmjs.org/downloads/range/${options.from}:${options.to}/${packageName}`;
       results.push(await this.fetchJson(url));
     } else if (options.period) {
       const url = `https://api.npmjs.org/downloads/range/${options.period}/${packageName}`;
@@ -365,14 +379,8 @@ class NpmDownloads extends ApiClientBase {
 
     return output.map(i => ({ date: i.day, total: i.downloads }))
   }
-}
 
-/*
-See: https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md
-*/
-
-class NpmRegistry extends ApiClientBase {
-  /**
+    /**
    * Not CORS-friendly.
    * Docs: https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#getpackage
    * Response data: https://github.com/npm/registry/blob/main/docs/responses/package-metadata.md
@@ -418,4 +426,4 @@ class NpmRegistry extends ApiClientBase {
   }
 }
 
-export { NpmDownloads, NpmRegistry };
+export { NpmApi as default };
