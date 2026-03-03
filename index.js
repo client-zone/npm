@@ -5,6 +5,7 @@
 import arrayify from 'array-back'
 import ApiClientBase from '@client-zone/base'
 import { Command, Queue } from 'work'
+import retryableFetch from 'retryable-fetch'
 
 /**
  * An isomorphic API client to access npm download and registry data.
@@ -13,6 +14,14 @@ import { Command, Queue } from 'work'
  * @alias module:@client-zone/npm
  */
 class NpmApi extends ApiClientBase {
+  constructor (options = {}) {
+    options.retryAfter = [2_000, 5_000, 10_000]
+    options.retryCriteria = async (response) => {
+      /* Don't retry on 404 as that represents "package not found" */
+      return response.status === 429
+    }
+    super(options)
+  }
 
   /**
    * @param {string[]} - One or more package names
@@ -95,6 +104,22 @@ class NpmApi extends ApiClientBase {
    * @see https://github.com/npm/registry/blob/main/docs/download-counts.md
    */
   async getPackageDownloadHistory (packageName, options = {}) {
+    /*
+    TODO: Implement rate limit retries. Use retryable-fetch. Requesting too often (e.g. https://api.npmjs.org/downloads/range/2026-01-01:2026-06-30/renamer) triggers this error message:
+
+    Error 1015 Ray ID: 9d626d466fa8ec22 • 2026-03-02 18:22:26 UTC
+    You are being rate limited. What happened? The owner of this website (api.npmjs.org) has banned you temporarily from accessing this website. Please see https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-1xxx-errors/error-1015/ for more details.
+
+    Fetch in 18 month periods. One year appears to work:
+    https://api.npmjs.org/downloads/range/2025-01-01:2025-12-31/renamer
+
+    But two years doesn't, the first half of 2024 is missing:
+    https://api.npmjs.org/downloads/range/2024-01-01:2025-12-31/renamer
+
+    Range each request from Jan to June the following year, then July to Dec the following year:
+    https://api.npmjs.org/downloads/range/2023-01-01:2024-06-30/renamer
+    https://api.npmjs.org/downloads/range/2024-07-01:2025-12-31/renamer
+     */
     const results = []
     if (options.from) {
       const dateFormat = new Intl.DateTimeFormat('en-ca') // e.g. 2024-09-13
@@ -114,19 +139,11 @@ class NpmApi extends ApiClientBase {
         '2018-01-01:2019-06-30',
         '2019-07-01:2020-12-31',
         '2021-01-01:2022-06-30',
-        '2022-07-01:2022-12-31',
-        '2023-01-01:2023-06-30',
-        '2023-07-01:2023-12-31',
-        '2024-01-01:2024-06-30',
-        '2024-07-01:2024-12-31',
-        '2025-01-01:2025-06-30',
-        '2025-07-01:2025-12-31',
-        // '2026-01-01:2026-06-30',
-        // '2026-07-01:2026-12-31',
-        // '2027-01-01:2027-06-30',
-        // '2027-07-01:2027-12-31',
+        '2022-07-01:2023-12-31',
+        '2024-01-01:2025-06-30',
+        '2025-07-01:2026-12-31',
       ]
-      const queue = new Queue({ maxConcurrency: 5 })
+      const queue = new Queue({ maxConcurrency: 1 }) // low concurrency to avoid rate limits
       for (const range of ranges) {
         const url = `https://api.npmjs.org/downloads/range/${range}/${packageName}`
         queue.add(async () => this.fetchJson(url))
@@ -162,8 +179,23 @@ class NpmApi extends ApiClientBase {
   }
 
   /**
+   * Maintainer searches now appear to exclude deprecated packages by default. There is no way to actively search for deprecated packages.
    *
-   * See [docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#get-v1search).
+   * Special search qualifiers can be provided in the full-text query:
+   *
+   *     author:bcoe: Show/filter results in which bcoe is the author
+   *     maintainer:bcoe: Show/filter results in which bcoe is qualifier as a maintainer
+   *     scope:foo: Show/filter results published under the @foo scope
+   *     keywords:batman: Show/filter results that have batman in the keywords
+   *         separating multiple keywords with
+   *             , acts like a logical OR
+   *             + acts like a logical AND
+   *             ,- can be used to exclude keywords
+   *     not:unstable: Exclude packages whose version is < 1.0.0
+   *     not:insecure: Exclude packages that are insecure or have vulnerable dependencies (based on the nsp registry)
+   *     is:unstable: Show/filter packages whose version is < 1.0.0
+   *     is:insecure: Show/filter packages that are insecure or have vulnerable dependencies (based on the nsp registry)
+   *     boost-exact:false: Do not boost exact matches, defaults to true
    *
    * @param [options] {object}
    * @param [options.size] {number} - Max 250
@@ -171,6 +203,7 @@ class NpmApi extends ApiClientBase {
    * @example
    * npm.search({ text: `maintainer:75lb` })
    * npm.search({ text: `author:75lb`, size: 10 })
+   * @See [docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#get-v1search).
    */
   async search (options = {}) {
     options.size ||= 250

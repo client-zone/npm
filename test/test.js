@@ -1,5 +1,9 @@
 import NpmApi from '@client-zone/npm'
 import { strict as a } from 'assert'
+import util from 'node:util'
+util.inspect.defaultOptions.depth = 6
+util.inspect.defaultOptions.breakLength = process.stdout.columns
+util.inspect.defaultOptions.maxArrayLength = Infinity
 
 const api = new NpmApi({ console })
 const [test, only, skip] = [new Map(), new Map(), new Map()]
@@ -85,6 +89,7 @@ test.set('getPackageDownloadHistory', async function () {
   const result = await api.getPackageDownloadHistory('command-line-args')
   const sum = result.reduce((total, item) => total + item.total, 0)
   // this.data = result
+
   /*
   [
     { date: '2015-03-15', total: 116 },
@@ -102,7 +107,7 @@ test.set('getPackageDownloadHistory: handle package not found', async function (
   try {
     await api.getPackageDownloadHistory('aaasssdddfff')
   } catch (err) {
-    /* should return a bespoke client-zone/npm err with the base error as the cause */
+    /* should return a bespoke client-zone/npm err with the base error as the cause.. the assertion below expects a client-zone/base bespoke error. */
     a.equal(err.response.status, 404)
   }
 })

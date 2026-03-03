@@ -229,34 +229,21 @@ class Queue {
 }
 
 /**
- * API Client for the npm download-counts API.
+ * @module @client-zone/npm
+ */
+
+
+/**
+ * An isomorphic API client to access npm download and registry data.
  *
  * @typicalname npm
- * @see https://github.com/npm/registry/blob/main/docs/download-counts.md
+ * @alias module:@client-zone/npm
  */
 class NpmApi extends ApiClientBase {
 
   /**
    * @param {string[]} - One or more package names
-   * @param {string} - One of the point values described in the [docs](https://github.com/npm/registry/blob/master/docs/download-counts.md#point-values).
-   *
-   * @example
-   * This request..
-   * ```js
-   * const result = await npm.getTotalPackageDownloads(['renamer', 'handbrake-js'], 'last-year')
-   * ```
-   *
-   * returns..
-   * ```
-   * {
-   *   packages: [
-   *     { name: 'renamer', downloads: 1062040 },
-   *     { name: 'handbrake-js', downloads: 58780 }
-   *   ],
-   *   total: 1120820
-   * }
-   * ```
-   *
+   * @param [point] {string} - One of the point values described in the [docs](https://github.com/npm/registry/blob/master/docs/download-counts.md#point-values).
    * @see https://github.com/npm/registry/blob/master/docs/download-counts.md#point-values
    */
   async getTotalPackageDownloads (packageNames, point = 'last-month') {
@@ -327,12 +314,30 @@ class NpmApi extends ApiClientBase {
   /**
    * Returns daily download totals for a package over a given time period.
    *
-   * @param [options.from] {string|Date}
-   * @param [options.to] {string|Date}
-   * @param [options.period] {string}
+   * @param {string} - npm package name
+   * @param [options] {object}
+   * @param [options.period] {string} - One of the point values specified [here](https://github.com/npm/registry/blob/main/docs/download-counts.md#parameters) (e.g. `last-day`, `last-week` etc). Either specify `options.period` or `options.from` (and optionally `options.to`) but not both.
+   * @param [options.from] {string|Date} - Time period start date.
+   * @param [options.to] {string|Date} - Time period end date. If `from` is specified but `to` is not, `to` defaults to today's date.
    * @see https://github.com/npm/registry/blob/main/docs/download-counts.md
    */
   async getPackageDownloadHistory (packageName, options = {}) {
+    /*
+    TODO: Implement rate limit retries. Use retryable-fetch. Requesting too often (e.g. https://api.npmjs.org/downloads/range/2026-01-01:2026-06-30/renamer) triggers this error message:
+
+    Error 1015 Ray ID: 9d626d466fa8ec22 • 2026-03-02 18:22:26 UTC
+    You are being rate limited. What happened? The owner of this website (api.npmjs.org) has banned you temporarily from accessing this website. Please see https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-1xxx-errors/error-1015/ for more details.
+
+    Fetch in 18 month periods. One year appears to work:
+    https://api.npmjs.org/downloads/range/2025-01-01:2025-12-31/renamer
+
+    But two years doesn't, the first half of 2024 is missing:
+    https://api.npmjs.org/downloads/range/2024-01-01:2025-12-31/renamer
+
+    Range each request from Jan to June the following year, then July to Dec the following year:
+    https://api.npmjs.org/downloads/range/2023-01-01:2024-06-30/renamer
+    https://api.npmjs.org/downloads/range/2024-07-01:2025-12-31/renamer
+     */
     const results = [];
     if (options.from) {
       const dateFormat = new Intl.DateTimeFormat('en-ca'); // e.g. 2024-09-13
@@ -352,19 +357,11 @@ class NpmApi extends ApiClientBase {
         '2018-01-01:2019-06-30',
         '2019-07-01:2020-12-31',
         '2021-01-01:2022-06-30',
-        '2022-07-01:2022-12-31',
-        '2023-01-01:2023-06-30',
-        '2023-07-01:2023-12-31',
-        '2024-01-01:2024-06-30',
-        '2024-07-01:2024-12-31',
-        '2025-01-01:2025-06-30',
-        '2025-07-01:2025-12-31',
-        // '2026-01-01:2026-06-30',
-        // '2026-07-01:2026-12-31',
-        // '2027-01-01:2027-06-30',
-        // '2027-07-01:2027-12-31',
+        '2022-07-01:2023-12-31',
+        '2024-01-01:2025-06-30',
+        '2025-07-01:2026-12-31',
       ];
-      const queue = new Queue({ maxConcurrency: 5 });
+      const queue = new Queue({ maxConcurrency: 1 }); // low concurrency to avoid rate limits
       for (const range of ranges) {
         const url = `https://api.npmjs.org/downloads/range/${range}/${packageName}`;
         queue.add(async () => this.fetchJson(url));
@@ -381,12 +378,12 @@ class NpmApi extends ApiClientBase {
   }
 
     /**
-   * Not CORS-friendly.
-   * Docs: https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#getpackage
-   * Response data: https://github.com/npm/registry/blob/main/docs/responses/package-metadata.md
+   * [Docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#getpackage). [Response data](https://github.com/npm/registry/blob/main/docs/responses/package-metadata.md).
    *
-   * [options.latest]{boolean} - Include only the latest version, not all versions
-   * [options.abbreviated]{boolean} - Include only the install data. Doesn't appear to work with `latest`.
+   * @param {string} - package name
+   * @param [options] {object}
+   * @param [options.latest] {boolean} - Include only the latest version, not all versions
+   * @param [options.abbreviated] {boolean} - Include only the install data. Doesn't appear to work with `latest`.
    */
   async getPackage (packageName, options = {}) {
     const fetchOptions = {
@@ -400,13 +397,31 @@ class NpmApi extends ApiClientBase {
   }
 
   /**
+   * Maintainer searches now appear to exclude deprecated packages by default. There is no way to actively search for deprecated packages.
    *
-   * See [docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#get-v1search).
-   * [options.size]{number} - Max 250
-   * [options.text]{string} - Full-text search string
+   * Special search qualifiers can be provided in the full-text query:
+   *
+   *     author:bcoe: Show/filter results in which bcoe is the author
+   *     maintainer:bcoe: Show/filter results in which bcoe is qualifier as a maintainer
+   *     scope:foo: Show/filter results published under the @foo scope
+   *     keywords:batman: Show/filter results that have batman in the keywords
+   *         separating multiple keywords with
+   *             , acts like a logical OR
+   *             + acts like a logical AND
+   *             ,- can be used to exclude keywords
+   *     not:unstable: Exclude packages whose version is < 1.0.0
+   *     not:insecure: Exclude packages that are insecure or have vulnerable dependencies (based on the nsp registry)
+   *     is:unstable: Show/filter packages whose version is < 1.0.0
+   *     is:insecure: Show/filter packages that are insecure or have vulnerable dependencies (based on the nsp registry)
+   *     boost-exact:false: Do not boost exact matches, defaults to true
+   *
+   * @param [options] {object}
+   * @param [options.size] {number} - Max 250
+   * @param [options.text] {string} - Full-text search string
    * @example
-   * registryApi.search({ text: `maintainer:75lb` })
-   * registryApi.search({ text: `author:75lb`, size: 10 })
+   * npm.search({ text: `maintainer:75lb` })
+   * npm.search({ text: `author:75lb`, size: 10 })
+   * @See [docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#get-v1search).
    */
   async search (options = {}) {
     options.size ||= 250;

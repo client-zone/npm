@@ -10,7 +10,7 @@ An isomorphic API client to access npm download and registry data. Full API Refe
 
 ## Examples
 
-First, load and instance the client.
+First, load and instantiate the client.
 
 ```js
 import NpmApi from '@client-zone/npm'

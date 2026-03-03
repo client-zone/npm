@@ -59,9 +59,26 @@ Returns daily download totals for a package over a given time period.
 <a name="module_@client-zone/npm--NpmApi+search"></a>
 
 #### npm.search([options])
-See [docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#get-v1search).
+Maintainer searches now appear to exclude deprecated packages by default. There is no way to actively search for deprecated packages.
+
+Special search qualifiers can be provided in the full-text query:
+
+    author:bcoe: Show/filter results in which bcoe is the author
+    maintainer:bcoe: Show/filter results in which bcoe is qualifier as a maintainer
+    scope:foo: Show/filter results published under the @foo scope
+    keywords:batman: Show/filter results that have batman in the keywords
+        separating multiple keywords with
+            , acts like a logical OR
+            + acts like a logical AND
+            ,- can be used to exclude keywords
+    not:unstable: Exclude packages whose version is < 1.0.0
+    not:insecure: Exclude packages that are insecure or have vulnerable dependencies (based on the nsp registry)
+    is:unstable: Show/filter packages whose version is < 1.0.0
+    is:insecure: Show/filter packages that are insecure or have vulnerable dependencies (based on the nsp registry)
+    boost-exact:false: Do not boost exact matches, defaults to true
 
 **Kind**: instance method of [<code>NpmApi</code>](#exp_module_@client-zone/npm--NpmApi)  
+**See**: [docs](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#get-v1search).  
 
 | Param | Type | Description |
 | --- | --- | --- |
