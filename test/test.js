@@ -87,7 +87,7 @@ test.set('getTotalPackageDownloads: scoped package not found', async function ()
 
 test.set('getPackageDownloadHistory', async function () {
   const result = await api.getPackageDownloadHistory('command-line-args')
-  const sum = result.reduce((total, item) => total + item.total, 0)
+  const sum = result[result.length - 1].runningTotal
   // this.data = result
 
   /*
@@ -101,6 +101,27 @@ test.set('getPackageDownloadHistory', async function () {
   */
   a.ok(result.length > 1500)
   a.ok(sum > 400_000_000)
+})
+
+test.set('getPackageDownloadHistory: groupBy month', async function () {
+  const result = await api.getPackageDownloadHistory('command-line-args', { groupBy: 'month' })
+  const sum = result[result.length - 1].runningTotal
+  // this.data = result
+
+  /*
+  [
+    { date: '2015-01-01', total: 0, runningTotal: 0 },
+    { date: '2015-02-01', total: 199, runningTotal: 199 },
+    { date: '2015-03-01', total: 6380, runningTotal: 6579 },
+    { date: '2015-04-01', total: 6012, runningTotal: 12591 },
+    { date: '2015-05-01', total: 6689, runningTotal: 19280 },
+    etc
+  ]
+  */
+  a.ok(result.length > 100)
+  a.ok(sum > 500_000_000)
+  const row = result.find(r => r.date === '2016-01-01')
+  a.ok(row.total > 70_000)
 })
 
 test.set('getPackageDownloadHistory: handle package not found', async function () {

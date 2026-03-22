@@ -99,17 +99,13 @@ class NpmApi extends ApiClientBase {
    * @param {string} - npm package name
    * @param [options] {object}
    * @param [options.period] {string} - One of the point values specified [here](https://github.com/npm/registry/blob/main/docs/download-counts.md#parameters) (e.g. `last-day`, `last-week` etc). Either specify `options.period` or `options.from` (and optionally `options.to`) but not both.
-   * @param [options.from] {string|Date} - Time period start date.
-   * @param [options.to] {string|Date} - Time period end date. If `from` is specified but `to` is not, `to` defaults to today's date.
+   * @param [options.from] {string|Date} - Time period start date. Either a Date object or string in the format YYYY-MM-DD.
+   * @param [options.to] {string|Date} - Time period end date. Either a Date object or string in the format YYYY-MM-DD. If `from` is specified but `to` is not, `to` defaults to today's date.
+   * @param [options.groupBy] {string} - Currently only accepts `month`.
    * @see https://github.com/npm/registry/blob/main/docs/download-counts.md
    */
   async getPackageDownloadHistory (packageName, options = {}) {
     /*
-    TODO: Implement rate limit retries. Use retryable-fetch. Requesting too often (e.g. https://api.npmjs.org/downloads/range/2026-01-01:2026-06-30/renamer) triggers this error message:
-
-    Error 1015 Ray ID: 9d626d466fa8ec22 • 2026-03-02 18:22:26 UTC
-    You are being rate limited. What happened? The owner of this website (api.npmjs.org) has banned you temporarily from accessing this website. Please see https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-1xxx-errors/error-1015/ for more details.
-
     Fetch in 18 month periods. One year appears to work:
     https://api.npmjs.org/downloads/range/2025-01-01:2025-12-31/renamer
 
@@ -132,7 +128,7 @@ class NpmApi extends ApiClientBase {
       const url = `https://api.npmjs.org/downloads/range/${options.period}/${packageName}`
       results.push(await this.fetchJson(url))
     } else {
-      /* Fetch everything - should only be necessary the first time. After then, use `options.since`. */
+      /* Fetch everything - should only be necessary the first time. After then, use `options.from`. */
       const ranges = [
         '2015-01-01:2016-06-30',
         '2016-07-01:2017-12-31',
@@ -151,12 +147,26 @@ class NpmApi extends ApiClientBase {
       const processed = await queue.process()
       results.push(...processed)
     }
-    const output = []
+    let output = []
     for (const json of results) {
-      output.push(...json.downloads)
+      output.push(...json.downloads.map(i => ({ date: i.day, total: i.downloads })))
     }
 
-    return output.map(i => ({ date: i.day, total: i.downloads }))
+    /* group by month */
+    if (options.groupBy === 'month') {
+      const grouped = Object.groupBy(output, d => `${d.date.substr(0, 7)}`)
+      output = Object.entries(grouped).map(([month, rows]) => {
+        return { date: month + '-01', total: rows.reduce((a, c) => c.total + a, 0) }
+      })
+    }
+
+    /* Add running total */
+    let total = 0
+    for (const row of output) {
+      total += row.total
+      row.runningTotal = total
+    }
+    return output
   }
 
     /**

@@ -55,6 +55,88 @@ function arrayify (input) {
   }
 }
 
+/**
+ * A sleep function you can use anywhere.
+ *
+ * @module sleep-anywhere
+ * @example
+ * import sleep from 'sleep-anywhere'
+ *
+ * const result = await sleep(5000, 'later')
+ * console.log('5s', result)
+ * // 5s later
+ */
+
+/**
+ * Returns a promise which fulfils after `ms` milliseconds with the supplied `returnValue`.
+ * @param {number} ms - How long in milliseconds to sleep for.
+ * @param {*} [returnValue] - The value to return.
+ * @returns {Promise}
+ * @alias module:sleep-anywhere
+ */
+function sleep (ms, returnValue) {
+  return new Promise(resolve => setTimeout(() => resolve(returnValue), ms))
+}
+
+/**
+ * Returns a function wrapping the supplied fetch function, adding retry functionality.
+ * @param fetch {function} - The fetch function to wrap
+ * @param [options] {object} - Config object.
+ * @param [options.retryAfter] {number[]}
+ * @param [options.log] {function}
+ */
+function createRetryableFetch (options) {
+  const defaultOptions = Object.assign({
+    retryAfter: [],
+    log: function () {},
+    fetch
+  }, options);
+  return function retryableFetch (url, options) {
+    options = Object.assign({}, defaultOptions, options);
+    const retryAfter = options.retryAfter.slice();
+    return new Promise(async (resolve, reject) => {
+      let complete = false;
+      while (!complete) {
+        try {
+          const response = await options.fetch(url, options);
+
+          /* default retry criteria */
+          let ok = response.ok;
+          /* Custom retry criteria */
+          if (options.retryCriteria) {
+            ok = !(await options.retryCriteria(response));
+          }
+          if (ok) {
+            resolve(response);
+            complete = true;
+          } else {
+            // TODO: user-defined log message and error instance
+            const err = new Error('Retry criteria met');
+            err.response = response;
+            err.status = response.status;
+            throw err
+          }
+        } catch (cause) {
+          const remainingRetries = retryAfter.length;
+          if (remainingRetries) {
+            /* Currently retries regardless of cause. Are there some fetch exceptions that might not warrant retrying? What if the retryCriteria function throws? */
+            const waitPeriod = retryAfter.shift();
+            options.log('Retry', url, remainingRetries, waitPeriod, `${url}, ${remainingRetries} attempts remaining, waiting ${waitPeriod}ms.`);
+            await sleep(waitPeriod);
+            complete = false;
+          } else {
+            complete = true;
+            /* It only throws with the final cause.. causes from earlier retries may have been different.  */
+            const err = new Error('No retries remaining');
+            err.cause = cause;
+            reject(err);
+          }
+        }
+      }
+    })
+  }
+}
+
 class ApiClientBase {
   /**
    * @param [options] {object}
@@ -65,6 +147,8 @@ class ApiClientBase {
   constructor (options = {}) {
     this.baseUrl = options.baseUrl || '';
     this.fetchOptions = options.fetchOptions || {};
+    this.retryAfter = options.retryAfter || [];
+    this.retryCriteria = options.retryCriteria;
     this.console = options.console || {};
     this.console.log ||= function () {};
     this.console.info ||= function () {};
@@ -74,7 +158,7 @@ class ApiClientBase {
   }
 
   async #createNotOKError (url, fetchOptions, response) {
-    const err = new Error(`${response.status}: ${response.statusText}`);
+    const err = new Error(`[${url}] ${response.status}: ${response.statusText}`);
     err.request = { url, fetchOptions };
     err.response = {
       status: response.status,
@@ -100,7 +184,6 @@ class ApiClientBase {
     const fetchOptions = Object.assign({}, this.fetchOptions, options);
 
     // TODO: rewrite to use URL instances? They have built-in methods like searchParams.add(). Handle URL instances as input as an alternative to `path`? See ibkr-cpapi for a use case study.
-    // TODO: Add retrying
     const url = `${this.baseUrl}${path}`;
     if (!options.skipPreFetch) {
       this.preFetch(url, fetchOptions);
@@ -110,13 +193,19 @@ class ApiClientBase {
     let response;
     try {
       this.console.info('Fetching', url, fetchOptions);
+
+      const reFetch = createRetryableFetch({
+        log: this.console.log,
+        retryAfter: this.retryAfter,
+        retryCriteria: this.retryCriteria
+      });
+
       /* Potential fetch exceptions: https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch#exceptions */
-      response = await fetch(url, fetchOptions);
-    } catch (err) {
-      const baseError = new Error(`Failed to fetch: ${url}`);
-      baseError.cause = err;
-      baseError.request = { url, fetchOptions };
-      throw baseError
+      response = await reFetch(url, fetchOptions);
+    } catch (cause) {
+      const err = await this.#createNotOKError(url, fetchOptions, cause.cause.response);
+      err.cause = cause;
+      throw err
     }
 
     this.console.info(`Fetched: ${url}, Response: ${response.status}, Duration: ${Date.now() - now}ms`);
@@ -240,6 +329,14 @@ class Queue {
  * @alias module:@client-zone/npm
  */
 class NpmApi extends ApiClientBase {
+  constructor (options = {}) {
+    options.retryAfter = [2_000, 5_000, 10_000];
+    options.retryCriteria = async (response) => {
+      /* Don't retry on 404 as that represents "package not found" */
+      return response.status === 429
+    };
+    super(options);
+  }
 
   /**
    * @param {string[]} - One or more package names
@@ -317,17 +414,13 @@ class NpmApi extends ApiClientBase {
    * @param {string} - npm package name
    * @param [options] {object}
    * @param [options.period] {string} - One of the point values specified [here](https://github.com/npm/registry/blob/main/docs/download-counts.md#parameters) (e.g. `last-day`, `last-week` etc). Either specify `options.period` or `options.from` (and optionally `options.to`) but not both.
-   * @param [options.from] {string|Date} - Time period start date.
-   * @param [options.to] {string|Date} - Time period end date. If `from` is specified but `to` is not, `to` defaults to today's date.
+   * @param [options.from] {string|Date} - Time period start date. Either a Date object or string in the format YYYY-MM-DD.
+   * @param [options.to] {string|Date} - Time period end date. Either a Date object or string in the format YYYY-MM-DD. If `from` is specified but `to` is not, `to` defaults to today's date.
+   * @param [options.groupBy] {string} - Currently only accepts `month`.
    * @see https://github.com/npm/registry/blob/main/docs/download-counts.md
    */
   async getPackageDownloadHistory (packageName, options = {}) {
     /*
-    TODO: Implement rate limit retries. Use retryable-fetch. Requesting too often (e.g. https://api.npmjs.org/downloads/range/2026-01-01:2026-06-30/renamer) triggers this error message:
-
-    Error 1015 Ray ID: 9d626d466fa8ec22 • 2026-03-02 18:22:26 UTC
-    You are being rate limited. What happened? The owner of this website (api.npmjs.org) has banned you temporarily from accessing this website. Please see https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-1xxx-errors/error-1015/ for more details.
-
     Fetch in 18 month periods. One year appears to work:
     https://api.npmjs.org/downloads/range/2025-01-01:2025-12-31/renamer
 
@@ -350,7 +443,7 @@ class NpmApi extends ApiClientBase {
       const url = `https://api.npmjs.org/downloads/range/${options.period}/${packageName}`;
       results.push(await this.fetchJson(url));
     } else {
-      /* Fetch everything - should only be necessary the first time. After then, use `options.since`. */
+      /* Fetch everything - should only be necessary the first time. After then, use `options.from`. */
       const ranges = [
         '2015-01-01:2016-06-30',
         '2016-07-01:2017-12-31',
@@ -369,12 +462,26 @@ class NpmApi extends ApiClientBase {
       const processed = await queue.process();
       results.push(...processed);
     }
-    const output = [];
+    let output = [];
     for (const json of results) {
-      output.push(...json.downloads);
+      output.push(...json.downloads.map(i => ({ date: i.day, total: i.downloads })));
     }
 
-    return output.map(i => ({ date: i.day, total: i.downloads }))
+    /* group by month */
+    if (options.groupBy === 'month') {
+      const grouped = Object.groupBy(output, d => `${d.date.substr(0, 7)}`);
+      output = Object.entries(grouped).map(([month, rows]) => {
+        return { date: month + '-01', total: rows.reduce((a, c) => c.total + a, 0) }
+      });
+    }
+
+    /* Add running total */
+    let total = 0;
+    for (const row of output) {
+      total += row.total;
+      row.runningTotal = total;
+    }
+    return output
   }
 
     /**

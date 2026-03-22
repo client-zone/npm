@@ -39,8 +39,9 @@ Returns daily download totals for a package over a given time period.
 | packageName | <code>string</code> | npm package name |
 | [options] | <code>object</code> |  |
 | [options.period] | <code>string</code> | One of the point values specified [here](https://github.com/npm/registry/blob/main/docs/download-counts.md#parameters) (e.g. `last-day`, `last-week` etc). Either specify `options.period` or `options.from` (and optionally `options.to`) but not both. |
-| [options.from] | <code>string</code> \| <code>Date</code> | Time period start date. |
-| [options.to] | <code>string</code> \| <code>Date</code> | Time period end date. If `from` is specified but `to` is not, `to` defaults to today's date. |
+| [options.from] | <code>string</code> \| <code>Date</code> | Time period start date. Either a Date object or string in the format YYYY-MM-DD. |
+| [options.to] | <code>string</code> \| <code>Date</code> | Time period end date. Either a Date object or string in the format YYYY-MM-DD. If `from` is specified but `to` is not, `to` defaults to today's date. |
+| [options.groupBy] | <code>string</code> | Currently only accepts `month`. |
 
 <a name="module_@client-zone/npm--NpmApi+getPackage"></a>
 
